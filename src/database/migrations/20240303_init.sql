@@ -22,9 +22,10 @@ CREATE TABLE IF NOT EXISTS spammers (
 CREATE TABLE IF NOT EXISTS server_configs (
     server_id VARCHAR(20) NOT NULL,
     log_channel VARCHAR(20),
-    ping_admins BOOLEAN NOT NULL DEFAULT FALSE,
+    ping_users BOOLEAN NOT NULL DEFAULT FALSE,
     action_level INT NOT NULL DEFAULT 0,
+    timeout_users_with_role BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    primary key (id)
+    primary key (server_id)
 );
