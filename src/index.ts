@@ -5,7 +5,7 @@ import { Client } from 'pg';
 import Logger from './log/logger';
 
 export const client = new ExtendedClient({
-  intents: [GatewayIntentBits.GuildModeration],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildModeration],
 });
 
 await client.start({
