@@ -1,4 +1,4 @@
-import { Snowflake } from 'discord.js';
+import { Client, Snowflake } from 'discord.js';
 import { pgClient } from '../..';
 import { config } from '../../config';
 
@@ -8,22 +8,22 @@ export type DbUser = {
   created_at: Date;
 };
 
-export default abstract class AdminModelController {
+export abstract class UserModelController {
   public static async createUser(createUser: {
     id: Snowflake;
     servers: Snowflake[];
   }): Promise<DbUser> {
-    createUser.servers.push(config.adminServerID);
+    const serverIDs = createUser.servers.push(config.adminServerID);
 
     const user = await pgClient.query<DbUser>(
       'INSERT INTO users (id, servers) VALUES ($1, $2) RETURNING *',
-      [createUser.id, createUser.servers],
+      [createUser.id, serverIDs],
     );
 
     return user.rows[0];
   }
 
-  public static async getUser(id: Snowflake): Promise<DbUser> {
+  public static async getUser(id: Snowflake): Promise<DbUser | undefined> {
     const user = await pgClient.query<DbUser>('SELECT * FROM users WHERE id = $1', [id]);
 
     return user.rows[0];
@@ -33,11 +33,11 @@ export default abstract class AdminModelController {
     id: Snowflake;
     servers: Snowflake[];
   }): Promise<DbUser> {
-    updateUser.servers.push(config.adminServerID);
+    const serverIDs = updateUser.servers.push(config.adminServerID);
 
     const user = await pgClient.query<DbUser>(
       'UPDATE users SET servers = $1 WHERE id = $2 RETURNING *',
-      [updateUser.servers, updateUser.id],
+      [serverIDs, updateUser.id],
     );
 
     return user.rows[0];
@@ -67,5 +67,10 @@ export default abstract class AdminModelController {
     ]);
 
     return users.rows;
+  }
+
+  public static async getUniqueServerIDs(): Promise<Snowflake[]> {
+    const result = await pgClient.query('SELECT DISTINCT unnest(servers) AS server_id FROM users');
+    return result.rows.map((row) => row.server_id);
   }
 }
