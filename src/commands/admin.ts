@@ -73,7 +73,7 @@ export default new Command({
         await interaction.editReply({ embeds: [adminEmbed] });
       } catch (e) {
         Logger.error(`Error fetching admins: ${e}`);
-        await interaction.editReply('Error fetching admins');
+        await interaction.editReply('Error fetching admins.');
       }
     }
 
@@ -81,17 +81,17 @@ export default new Command({
       const user = args.getUser('user');
 
       if (!user) {
-        return interaction.editReply('Invalid user');
+        return interaction.editReply('Invalid user.');
       }
 
       try {
         await AdminModelController.createAdmin(user.id);
         await interaction.editReply(
-          `Added ${escapeMarkdown(user.globalName ?? user.username)} as an admin`,
+          `Added ${escapeMarkdown(user.globalName ?? user.username)} as an admin.`,
         );
       } catch (e) {
         Logger.error(`Error adding admin: ${e}`);
-        await interaction.editReply('Error adding admin');
+        await interaction.editReply('Error adding admin.');
       }
     }
 
@@ -99,17 +99,17 @@ export default new Command({
       const user = args.getUser('user');
 
       if (!user) {
-        return interaction.editReply('Invalid user');
+        return interaction.editReply('Invalid user.');
       }
 
       try {
         await AdminModelController.deleteAdmin(user.id);
         await interaction.editReply(
-          `Removed ${escapeMarkdown(user.globalName ?? user.username)} as an admin`,
+          `Removed ${escapeMarkdown(user.globalName ?? user.username)} as an admin.`,
         );
       } catch (e) {
         Logger.error(`Error removing admin: ${e}`);
-        await interaction.editReply('Error removing admin');
+        await interaction.editReply('Error removing admin.');
       }
     }
   },
