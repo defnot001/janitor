@@ -3,13 +3,13 @@ import { env } from 'bun';
 import Logger from './log/logger';
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'development';
-Logger.log(`Loaded ${env['NODE_ENV']} config.`, 'info');
+Logger.info(`Loaded ${env['NODE_ENV']} config.`);
 
 export const config = {
   botToken: env['DISCORD_BOT_TOKEN'],
   clientID: env['DISCORD_CLIENT_ID'],
-  guildID: env['DISCORD_GUILD_ID'],
   databaseURL: env['DATABASE_URL'],
+  adminServerID: env['ADMIN_SERVER_ID'],
 } as const;
 
 function isConfigFullySet(config: { [key: string]: any }): boolean {
