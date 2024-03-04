@@ -9,6 +9,7 @@ export const config = {
   botToken: env['DISCORD_BOT_TOKEN'],
   clientID: env['DISCORD_CLIENT_ID'],
   databaseURL: env['DATABASE_URL'],
+  superuser: env['SUPERUSER'],
   adminServerID: env['ADMIN_SERVER_ID'],
 } as const;
 
