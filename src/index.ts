@@ -10,7 +10,6 @@ export const client = new ExtendedClient({
 
 await client.start({
   botToken: process.env.DISCORD_BOT_TOKEN,
-  guildID: process.env.DISCORD_GUILD_ID,
   commandsPath: projectPaths.commands,
   eventsPath: projectPaths.events,
   globalCommands: true,
@@ -23,8 +22,8 @@ export const pgClient = new Client({
 
 pgClient
   .connect()
-  .then(() => Logger.log('Connected to the database.', 'info'))
-  .catch((err) => Logger.log(err, 'error'));
+  .then(() => Logger.info('Connected to the database.'))
+  .catch((err) => Logger.error(err.toString()));
 
 process.on('SIGINT', () => {
   pgClient.connect();

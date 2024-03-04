@@ -9,7 +9,23 @@ const colors = {
 };
 
 export default abstract class Logger {
-  public static log(message: string, logLevel: LogLevel): void {
+  public static debug(message: string): void {
+    this.log(message, 'debug');
+  }
+
+  public static info(message: string): void {
+    this.log(message, 'info');
+  }
+
+  public static warn(message: string): void {
+    this.log(message, 'warn');
+  }
+
+  public static error(message: string): void {
+    this.log(message, 'error');
+  }
+
+  private static log(message: string, logLevel: LogLevel): void {
     const now = new Date();
     const timeString = `[${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}] [${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}:${String(now.getUTCSeconds()).padStart(2, '0')}]`;
     const logLevelString = `${this.displayLogLevel(logLevel)}:`;

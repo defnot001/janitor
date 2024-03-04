@@ -60,7 +60,7 @@ export class ExtendedClient extends Client {
 
       await guild.commands.set([]);
 
-      Logger.log(`Successfully removed commands from ${guild.name}.`, 'info');
+      Logger.info(`Successfully removed commands from ${guild.name}.`);
     } else {
       if (!this.application) {
         throw new Error('Cannot find the application to remove the commands from!');
@@ -68,7 +68,7 @@ export class ExtendedClient extends Client {
 
       await this.application.commands.set([]);
 
-      Logger.log('Successfully removed all commands.', 'info');
+      Logger.info('Successfully removed all commands.');
     }
   }
 
@@ -84,7 +84,7 @@ export class ExtendedClient extends Client {
 
       await guild.commands.set(commands);
 
-      Logger.log(`Successfully registered ${commands.length} commands to ${guild.name}.`, 'info');
+      Logger.info(`Successfully registered ${commands.length} commands to ${guild.name}.`);
     } else {
       if (!this.application) {
         throw new Error('Cannot find the application to register the commands to');
@@ -92,7 +92,7 @@ export class ExtendedClient extends Client {
 
       await this.application.commands.set(commands);
 
-      Logger.log(`Successfully registered ${commands.length} global commands.`, 'info');
+      Logger.info(`Successfully registered ${commands.length} global commands.`);
     }
   }
 

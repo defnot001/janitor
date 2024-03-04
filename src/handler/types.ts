@@ -28,7 +28,7 @@ export type CommandOptions = {
 
 export type ClientStartOptions = {
   botToken: string;
-  guildID: string;
+  guildID?: string;
   commandsPath: string;
   eventsPath: string;
   globalCommands: boolean;

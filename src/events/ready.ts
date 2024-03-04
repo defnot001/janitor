@@ -6,6 +6,6 @@ import Logger from '../log/logger';
 
 export default new Event('ready', async (c) => {
   c.user.setActivity('Bad Actors', { type: ActivityType.Watching });
-  Logger.log(`Bot is ready! Logged in as ${c.user.username}.`, 'info');
+  Logger.info(`Bot is ready! Logged in as ${c.user.username}.`);
   // await client.removeCommands();
 });
