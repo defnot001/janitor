@@ -1,4 +1,4 @@
-import type { CommandInteractionOptionResolver, TextBasedChannel } from 'discord.js';
+import type { CommandInteractionOptionResolver, Snowflake, TextBasedChannel } from 'discord.js';
 import { Event } from '../handler/classes/Event';
 import { client } from '..';
 import { ExtendedInteraction } from '../handler/types';
@@ -11,13 +11,15 @@ export default new Event('interactionCreate', async (interaction) => {
 
   const { commandName } = interaction;
   const username = interaction.user.globalName ?? interaction.user.username;
-  const channelNameAddon = getChannelNameAddon(interaction.channel);
+
+  const channelNameAddon = await getChannelNameAddon(interaction.channelId);
+  const guildNameAddon = ` (${interaction.guild?.name})`;
 
   const command = client.commands.get(commandName);
 
   if (!command) {
     Logger.error(
-      `${username} used ${commandName} ${channelNameAddon} but the command does not exist.`,
+      `${username} used /${commandName} ${channelNameAddon} but the command does not exist.`,
     );
 
     await interaction.reply({
@@ -28,7 +30,9 @@ export default new Event('interactionCreate', async (interaction) => {
     return;
   }
 
-  Logger.info(`${username} used ${commandName} ${channelNameAddon}.`);
+  Logger.info(
+    `${username} (${interaction.user.id}) used /${commandName}${channelNameAddon}${guildNameAddon}.`,
+  );
 
   try {
     return command.execute({
@@ -48,9 +52,11 @@ export default new Event('interactionCreate', async (interaction) => {
   }
 });
 
-function getChannelNameAddon(channel: TextBasedChannel | null): string {
+async function getChannelNameAddon(channelID: Snowflake) {
+  const channel = await client.channels.fetch(channelID);
+
   if (channel && 'name' in channel) {
-    return `in #${channel.name}`;
+    return ` in #${channel.name}`;
   }
 
   return '';
