@@ -1,0 +1,25 @@
+{
+  "name": "tmc-janitor",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/pg": "^8.11.2",
+    "bun-types": "latest",
+    "prettier": "^3.2.5"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "glob": "^10.3.10",
+    "pg": "^8.11.3"
+  },
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "dev:watch": "bun run --watch src/index.ts",
+    "deploy": "NODE_ENV=production bun run src/index.ts",
+    "migrate:dev": "bun run src/migration.ts",
+    "migrate:prod": "NODE_ENV=production bun run src/migration.ts"
+  }
+}
