@@ -1,23 +1,12 @@
 import { Snowflake } from 'discord.js';
 import { pgClient } from '../..';
 
-/**
- * CREATE TABLE IF NOT EXISTS server_configs (
-    server_id VARCHAR(20) NOT NULL,
-    log_channel VARCHAR(20),
-    ping_users BOOLEAN NOT NULL DEFAULT FALSE,
-    action_level INT NOT NULL DEFAULT 0,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    primary key (id)
-);
- */
-
 export type DbServerConfig = {
   server_id: Snowflake;
   log_channel: Snowflake | null;
   ping_users: boolean;
   action_level: number;
+  timeout_users_with_role: boolean;
   created_at: Date;
   updated_at: Date;
 };
@@ -27,19 +16,21 @@ type CreateServerConfig = {
   action_level?: number | null;
   log_channel?: Snowflake | null;
   ping_users?: boolean | null;
+  timeout_users_with_role?: boolean | null;
 };
 
-export default abstract class ServerConfigModelController {
+export abstract class ServerConfigModelController {
   public static async createServerConfig(
     createServerConfig: CreateServerConfig,
   ): Promise<DbServerConfig> {
     const serverConfig = await pgClient.query<DbServerConfig>(
-      'INSERT INTO server_configs (server_id, log_channel, ping_users, action_level) VALUES ($1, $2, $3, $4) RETURNING *',
+      'INSERT INTO server_configs (server_id, log_channel, ping_users, action_level, timeout_users_with_role) VALUES ($1, $2, $3, $4, $5) RETURNING *',
       [
         createServerConfig.server_id,
         createServerConfig.log_channel || null,
         createServerConfig.ping_users || false,
         createServerConfig.action_level || 0,
+        createServerConfig.timeout_users_with_role || false,
       ],
     );
 
@@ -69,10 +60,12 @@ export default abstract class ServerConfigModelController {
     const actionLevel = updateServerConfig.action_level || currentServerConfig.action_level;
     const logChannel = updateServerConfig.log_channel || currentServerConfig.log_channel;
     const pingUsers = updateServerConfig.ping_users || currentServerConfig.ping_users;
+    const timeoutUsersWithRole =
+      updateServerConfig.timeout_users_with_role || currentServerConfig.timeout_users_with_role;
 
     const serverConfig = await pgClient.query<DbServerConfig>(
-      'UPDATE server_configs SET log_channel = $1, ping_users = $2, action_level = $3, updated_at = CURRENT_TIMESTAMP WHERE server_id = $4 RETURNING *',
-      [logChannel, pingUsers, actionLevel, updateServerConfig.server_id],
+      'UPDATE server_configs SET log_channel = $1, ping_users = $2, action_level = $3, timeout_users_with_role = $4, updated_at = CURRENT_TIMESTAMP WHERE server_id = $5 RETURNING *',
+      [logChannel, pingUsers, actionLevel, timeoutUsersWithRole, updateServerConfig.server_id],
     );
 
     return serverConfig.rows[0];
