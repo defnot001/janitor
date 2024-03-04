@@ -8,7 +8,7 @@ export type DbSpammer = {
   created_at: Date;
 };
 
-export default abstract class SpammerModelController {
+export abstract class SpammerModelController {
   public static async createSpammer(
     id: Snowflake,
     screenshot_proof?: string | null,
