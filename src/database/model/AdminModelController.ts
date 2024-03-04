@@ -6,17 +6,11 @@ export type DbAdmin = {
   created_at: Date;
 };
 
-export default abstract class AdminModelController {
+export abstract class AdminModelController {
   public static async createAdmin(id: Snowflake): Promise<DbAdmin> {
     const admin = await pgClient.query<DbAdmin>('INSERT INTO admins (id) VALUES ($1) RETURNING *', [
       id,
     ]);
-
-    return admin.rows[0];
-  }
-
-  public static async getAdmin(id: Snowflake): Promise<DbAdmin> {
-    const admin = await pgClient.query<DbAdmin>('SELECT * FROM admins WHERE id = $1', [id]);
 
     return admin.rows[0];
   }
@@ -33,5 +27,11 @@ export default abstract class AdminModelController {
     const admins = await pgClient.query<DbAdmin>('SELECT * FROM admins');
 
     return admins.rows;
+  }
+
+  public static async isAdmin(id: Snowflake): Promise<boolean> {
+    const admin = await pgClient.query<DbAdmin>('SELECT * FROM admins WHERE id = $1', [id]);
+
+    return admin.rows.length > 0;
   }
 }
