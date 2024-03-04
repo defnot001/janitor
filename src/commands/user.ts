@@ -30,9 +30,9 @@ export default new Command({
           required: true,
         },
         {
-          name: 'serverID',
+          name: 'server_id',
           description:
-            'The server(s) that the user should be able to use the bot in. Separate multiple serverIDs with a comma. The admin server ID is always included.',
+            'Server(s) for bot usage, separated by commas. Admin server always included.',
           type: ApplicationCommandOptionType.String,
           required: true,
         },
@@ -62,7 +62,7 @@ export default new Command({
       type: ApplicationCommandOptionType.Subcommand,
       options: [
         {
-          name: 'serverID',
+          name: 'server_id',
           description: 'The server to get users for.',
           type: ApplicationCommandOptionType.String,
           required: true,
@@ -81,9 +81,9 @@ export default new Command({
           required: true,
         },
         {
-          name: 'serverID',
+          name: 'server_id',
           description:
-            'The server(s) that the user should be able to use the bot in. Separate multiple serverIDs with a comma. The admin server ID is always included.',
+            'Server(s) for bot usage, separated by commas. Admin server always included.',
           type: ApplicationCommandOptionType.String,
           required: true,
         },
@@ -165,7 +165,7 @@ export default new Command({
     }
 
     if (subcommand === 'list_by_server') {
-      const serverID = args.getString('serverID', true);
+      const serverID = args.getString('server_id', true);
       let server;
 
       try {
@@ -257,7 +257,7 @@ export default new Command({
 
     if (subcommand === 'add') {
       const serverIDs = args
-        .getString('serverID', true)
+        .getString('server_id', true)
         .split(',')
         .map((id) => id.trim());
 
@@ -282,7 +282,7 @@ export default new Command({
 
     if (subcommand === 'update') {
       const serverIDs = args
-        .getString('serverID', true)
+        .getString('server_id', true)
         .split(',')
         .map((id) => id.trim());
 
