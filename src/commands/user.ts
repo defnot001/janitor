@@ -3,6 +3,7 @@ import {
   Client,
   Guild,
   Snowflake,
+  User,
   escapeMarkdown,
   inlineCode,
   time,
@@ -272,7 +273,6 @@ export default new Command({
       try {
         const dbUser = await UserModelController.createUser({ id: user.id, servers: serverIDs });
         const guilds = await fetchGuilds(serverIDs, client);
-
         const serverNames = guilds.map((guild) => guild.name);
 
         await interaction.editReply(
@@ -312,67 +312,25 @@ export default new Command({
       }
 
       try {
-        const currentUserData = await UserModelController.getUser(user.id);
+        await UserModelController.updateUser({ id: user.id, servers: newServerIDs });
 
-        if (!currentUserData) {
-          await interaction.editReply(
-            `User ${escapeMarkdown(user.globalName ?? user.username)} with ID ${inlineCode(user.id)} is not on the whitelist.`,
-          );
-          return;
-        }
-
-        const oldServerIDs = currentUserData ? currentUserData.servers : [];
-
-        const newDbUser = await UserModelController.updateUser({
-          id: user.id,
-          servers: newServerIDs,
-        });
         const newGuilds = await fetchGuilds(newServerIDs, client);
         const newServerNames = newGuilds.map((newGuilds) => newGuilds.name);
 
         await interaction.editReply(
-          `Updated User ${escapeMarkdown(user.globalName ?? user.username)} with ID ${inlineCode(newDbUser.id)} on whitelist.\nThey are allowed to use the bot in the following servers: ${newServerNames.join(', ')}`,
+          `Updated User ${escapeMarkdown(user.globalName ?? user.username)} with ID ${inlineCode(user.id)} on whitelist.\nThey are allowed to use the bot in the following servers: ${newServerNames.join(', ')}`,
         );
-
-        const serversAdded = newServerIDs.filter((id) => !oldServerIDs.includes(id));
-        const serversRemoved = oldServerIDs.filter((id) => !newServerIDs.includes(id));
-
-        for (const serverID of serversAdded) {
-          const guild = await client.guilds.fetch(serverID);
-          const created = await ServerConfigModelController.createServerConfigIfNotExists(serverID);
-
-          if (created) {
-            Logger.info(`Created empty server config for server ${guild.name} (${serverID})`);
-            await interaction.followUp(
-              `Created empty server config for server ${escapeMarkdown(guild.name)} (${inlineCode(serverID)})`,
-            );
-          } else {
-            Logger.debug(
-              `Server config already exists for server ${guild.name} (${serverID}). Skipping creation.`,
-            );
-          }
-        }
-
-        for (const serverID of serversRemoved) {
-          const guild = await client.guilds.fetch(serverID);
-          const deleted = await ServerConfigModelController.deleteServerConfigIfNeeded(serverID);
-
-          if (deleted) {
-            Logger.info(
-              `Deleted server config for server ${guild.name} (${serverID}) because it's no longer in use.`,
-            );
-            await interaction.followUp(
-              `Deleted server config for server ${escapeMarkdown(guild.name)} (${inlineCode(serverID)}) because it's no longer in use.`,
-            );
-          } else {
-            Logger.debug(
-              `Server config for server ${guild.name} (${serverID}) still in use. Skipping deletion.`,
-            );
-          }
-        }
       } catch (e) {
         Logger.error(`Error updating user on whitelist: ${e}`);
         await interaction.editReply('An error occurred while updating the user on the whitelist.');
+        return;
+      }
+
+      try {
+        await handleServerConfigUpdates(user, newServerIDs, client);
+      } catch (e) {
+        Logger.error(`Error updating server configs: ${e}`);
+        await interaction.followUp('An error occurred while updating server configs.');
         return;
       }
     }
@@ -424,5 +382,28 @@ async function fetchGuilds(ids: Snowflake[], client: Client): Promise<Guild[]> {
       const server = await client.guilds.fetch(id);
       return server;
     }),
+  );
+}
+
+async function handleServerConfigUpdates(user: User, newServerIDs: Snowflake[], client: Client) {
+  const currentUserData = await UserModelController.getUser(user.id);
+  if (!currentUserData) {
+    throw new Error(`User ${user.id} not found.`);
+  }
+
+  const { servers: oldServerIDs } = currentUserData;
+  const serversToAdd = newServerIDs.filter((id) => !oldServerIDs.includes(id));
+  const serversToRemove = oldServerIDs.filter((id) => !newServerIDs.includes(id));
+
+  await Promise.all(
+    serversToAdd.map((serverID) =>
+      ServerConfigModelController.createServerConfigIfNotExists(serverID),
+    ),
+  );
+
+  await Promise.all(
+    serversToRemove.map((serverID) =>
+      ServerConfigModelController.deleteServerConfigIfNeeded(serverID),
+    ),
   );
 }
