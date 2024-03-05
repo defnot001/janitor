@@ -112,16 +112,22 @@ export default new Command({
     try {
       if (!(await AdminModelController.isAdmin(interaction.user.id))) {
         await interaction.editReply('You do not have permission to use this command.');
+        Logger.warn(
+          `${interaction.user.globalName ?? interaction.user.username} attempted to use /user without permission.`,
+        );
         return;
       }
     } catch (e) {
-      Logger.error(`Error getting admins: ${e}`);
       await interaction.editReply("An error occurred while trying to get the bot's admins.");
+      Logger.error(`Error getting admins from the database: ${e}`);
       return;
     }
 
     if (!interaction.guild || interaction.guild.id !== config.adminServerID) {
       await interaction.editReply('This command can only be used in the admin server.');
+      Logger.warn(
+        `User ${interaction.user.id} tried to use /user in ${interaction.guild?.name} but it can only be used in the admin server.`,
+      );
       return;
     }
 

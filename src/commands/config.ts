@@ -17,6 +17,7 @@ import {
   displayActionLevel,
 } from '../database/model/ServerConfigModelController';
 import { getTextChannelByID } from './adminconfig';
+import Logger from '../log/logger';
 
 export default new Command({
   name: 'config',
@@ -84,6 +85,9 @@ export default new Command({
 
     if (!interactionGuild) {
       await interaction.editReply('This command can only be used in a server.');
+      Logger.warn(
+        `${interaction.user.globalName ?? interaction.user.username} tried to use the config command outside of a guild.`,
+      );
       return;
     }
 
@@ -163,17 +167,24 @@ async function isUserAllowed(
 
     if (!dbUser) {
       await interaction.editReply('You are not allowed to use this command.');
+      Logger.warn(
+        `User ${interaction.user.globalName ?? interaction.user.username} attempted to use /config in ${guild.name} but the user does not exist in the database.`,
+      );
       return null;
     }
 
     if (!dbUser.servers.includes(guild.id) && guild.id !== config.adminServerID) {
       await interaction.editReply('You are not allowed to use this command here.');
+      Logger.warn(
+        `${interaction.user.globalName ?? interaction.user.username} attempted to use /config in ${guild.name} but the user is not allowed to use it there.`,
+      );
       return null;
     }
 
     return dbUser;
   } catch (e) {
     await interaction.editReply(`Failed to get user: ${e}`);
+    Logger.error(`Failed to get user from the database: ${e}`);
     return null;
   }
 }
