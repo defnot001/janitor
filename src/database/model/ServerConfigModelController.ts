@@ -1,11 +1,34 @@
 import { Snowflake } from 'discord.js';
 import { pgClient } from '../..';
 
+export enum ActionLevel {
+  Notify = 0,
+  Timeout = 1,
+  Kick = 2,
+  SoftBan = 3,
+  Ban = 4,
+}
+
+export function displayActionLevel(actionLevel: ActionLevel): string {
+  switch (actionLevel) {
+    case ActionLevel.Notify:
+      return 'Notify';
+    case ActionLevel.Timeout:
+      return 'Timeout';
+    case ActionLevel.Kick:
+      return 'Kick';
+    case ActionLevel.SoftBan:
+      return 'Soft Ban';
+    case ActionLevel.Ban:
+      return 'Ban';
+  }
+}
+
 export type DbServerConfig = {
   server_id: Snowflake;
   log_channel: Snowflake | null;
   ping_users: boolean;
-  action_level: number;
+  action_level: ActionLevel;
   timeout_users_with_role: boolean;
   created_at: Date;
   updated_at: Date;
@@ -13,7 +36,7 @@ export type DbServerConfig = {
 
 type CreateServerConfig = {
   server_id: Snowflake;
-  action_level?: number | null;
+  action_level?: ActionLevel | null;
   log_channel?: Snowflake | null;
   ping_users?: boolean | null;
   timeout_users_with_role?: boolean | null;
@@ -52,13 +75,20 @@ export abstract class ServerConfigModelController {
     return result.rows[0];
   }
 
-  public static async getServerConfig(server_id: Snowflake): Promise<DbServerConfig> {
+  public static async getServerConfig(server_id: Snowflake): Promise<DbServerConfig | null> {
     const serverConfig = await pgClient.query<DbServerConfig>(
       'SELECT * FROM server_configs WHERE server_id = $1',
       [server_id],
     );
 
     return serverConfig.rows[0];
+  }
+
+  public static async getServerConfigs(server_ids: Snowflake[]): Promise<DbServerConfig[]> {
+    const query = 'SELECT * FROM server_configs WHERE server_id = ANY($1::text[])';
+    const values = [server_ids];
+    const result = await pgClient.query<DbServerConfig>(query, values);
+    return result.rows;
   }
 
   public static async getAllServerConfigs(): Promise<DbServerConfig[]> {
@@ -71,6 +101,10 @@ export abstract class ServerConfigModelController {
     updateServerConfig: CreateServerConfig,
   ): Promise<DbServerConfig> {
     const currentServerConfig = await this.getServerConfig(updateServerConfig.server_id);
+
+    if (!currentServerConfig) {
+      throw new Error('Server config does not exist');
+    }
 
     const actionLevel = updateServerConfig.action_level || currentServerConfig.action_level;
     const logChannel = updateServerConfig.log_channel || currentServerConfig.log_channel;
