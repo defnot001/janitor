@@ -10,7 +10,7 @@ import {
 import { Command } from '../handler/classes/Command';
 import { DbUser, UserModelController } from '../database/model/UserModelController';
 import { config } from '../config';
-import { InfoEmbedBuilder } from '../builders';
+import { InfoEmbedBuilder } from '../util/builders';
 import {
   DbServerConfig,
   ServerConfigModelController,

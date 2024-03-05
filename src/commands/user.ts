@@ -13,7 +13,7 @@ import { config } from '../config';
 import Logger from '../log/logger';
 import { AdminModelController } from '../database/model/AdminModelController';
 import { UserModelController } from '../database/model/UserModelController';
-import { InfoEmbedBuilder } from '../builders';
+import { InfoEmbedBuilder } from '../util/builders';
 import { getServerMap, getUserMap } from '../util/discord';
 import { ServerConfigModelController } from '../database/model/ServerConfigModelController';
 

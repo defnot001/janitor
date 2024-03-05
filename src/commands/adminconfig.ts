@@ -21,7 +21,7 @@ import {
 import { DbUser, UserModelController } from '../database/model/UserModelController';
 import { ScriptElementKindModifier, server } from 'typescript';
 import { pgClient } from '..';
-import { InfoEmbedBuilder } from '../builders';
+import { InfoEmbedBuilder } from '../util/builders';
 
 export default new Command({
   name: 'adminconfig',

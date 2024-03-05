@@ -2,7 +2,7 @@ import { ApplicationCommandOptionType, escapeMarkdown, inlineCode } from 'discor
 import { Command } from '../handler/classes/Command';
 import { config } from '../config';
 import { AdminModelController } from '../database/model/AdminModelController';
-import { InfoEmbedBuilder } from '../builders';
+import { InfoEmbedBuilder } from '../util/builders';
 import Logger from '../log/logger';
 
 export default new Command({
