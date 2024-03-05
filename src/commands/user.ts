@@ -231,7 +231,18 @@ export default new Command({
         }
 
         const guilds = await fetchGuilds(dbUser.servers, client);
-        const serverNames = guilds.map((guild) => guild.name);
+
+        if (hasFailedGuildFetches(guilds)) {
+          const failedFetches = getFailedGuildFetches(guilds);
+          await interaction.editReply(
+            `Failed to fetch the following servers: ${failedFetches.map((id) => inlineCode(id)).join(', ')}. Either the bot is not in these servers or the IDs are incorrect.`,
+          );
+          return;
+        }
+
+        const checkedGuilds = Array.from(guilds.values()) as Guild[];
+
+        const serverNames = checkedGuilds.map((g) => g.name);
 
         const infoEmbed = new InfoEmbedBuilder(interaction.user, {
           title: `User Info for ${escapeMarkdown(user.globalName ?? user.username)}`,
@@ -271,15 +282,26 @@ export default new Command({
       }
 
       try {
-        const dbUser = await UserModelController.createUser({ id: user.id, servers: serverIDs });
         const guilds = await fetchGuilds(serverIDs, client);
-        const serverNames = guilds.map((guild) => guild.name);
+
+        if (hasFailedGuildFetches(guilds)) {
+          const failedFetches = getFailedGuildFetches(guilds);
+          await interaction.editReply(
+            `Failed to fetch the following servers: ${failedFetches.map((id) => inlineCode(id)).join(', ')}. Either the bot is not in these servers or the IDs are incorrect.`,
+          );
+          return;
+        }
+
+        const checkedGuilds = Array.from(guilds.values()) as Guild[];
+
+        const dbUser = await UserModelController.createUser({ id: user.id, servers: serverIDs });
+        const serverNames = checkedGuilds.map((g) => g.name);
 
         await interaction.editReply(
           `Added User ${escapeMarkdown(user.globalName ?? user.username)} with ID ${inlineCode(dbUser.id)} to whitelist.\nThey are allowed to use the bot in the following servers: ${serverNames.join(', ')}`,
         );
 
-        for await (const guild of guilds) {
+        for await (const guild of checkedGuilds) {
           const created = await ServerConfigModelController.createServerConfigIfNotExists(guild.id);
 
           if (created) {
@@ -312,10 +334,20 @@ export default new Command({
       }
 
       try {
-        await UserModelController.updateUser({ id: user.id, servers: newServerIDs });
-
         const newGuilds = await fetchGuilds(newServerIDs, client);
-        const newServerNames = newGuilds.map((newGuilds) => newGuilds.name);
+
+        if (hasFailedGuildFetches(newGuilds)) {
+          const failedFetches = getFailedGuildFetches(newGuilds);
+          await interaction.editReply(
+            `Failed to fetch the following servers: ${failedFetches.map((id) => inlineCode(id)).join(', ')}`,
+          );
+          return;
+        }
+
+        const checkedNewGuilds = Array.from(newGuilds.values()) as Guild[];
+        const newServerNames = checkedNewGuilds.map((g) => g.name);
+
+        await UserModelController.updateUser({ id: user.id, servers: newServerIDs });
 
         await interaction.editReply(
           `Updated User ${escapeMarkdown(user.globalName ?? user.username)} with ID ${inlineCode(user.id)} on whitelist.\nThey are allowed to use the bot in the following servers: ${newServerNames.join(', ')}`,
@@ -349,7 +381,17 @@ export default new Command({
 
         const guilds = await fetchGuilds(dbUser.servers, client);
 
-        for await (const guild of guilds) {
+        if (hasFailedGuildFetches(guilds)) {
+          const failedFetches = getFailedGuildFetches(guilds);
+          await interaction.followUp(
+            `Failed to fetch the following servers: ${failedFetches.map((id) => inlineCode(id)).join(', ')}`,
+          );
+          return;
+        }
+
+        const checkedGuilds = Array.from(guilds.values()) as Guild[];
+
+        for await (const guild of checkedGuilds) {
           const deleted = await ServerConfigModelController.deleteServerConfigIfNeeded(guild.id);
 
           if (deleted) {
@@ -376,13 +418,45 @@ export default new Command({
   },
 });
 
-async function fetchGuilds(ids: Snowflake[], client: Client): Promise<Guild[]> {
-  return await Promise.all(
-    ids.map(async (id) => {
-      const server = await client.guilds.fetch(id);
-      return server;
-    }),
-  );
+async function fetchGuilds(
+  ids: Snowflake[],
+  client: Client,
+): Promise<Map<Snowflake, Guild | null>> {
+  Logger.debug(`Fetching guilds: ${ids.join(', ')}`);
+
+  const guildMap = new Map<Snowflake, Guild | null>();
+
+  for await (const id of ids) {
+    const guild = await client.guilds.fetch(id).catch(() => {
+      Logger.warn(`Failed to fetch guild ${id}`);
+      return null;
+    });
+    guildMap.set(id, guild);
+  }
+
+  return guildMap;
+}
+
+function hasFailedGuildFetches(guildMap: Map<Snowflake, Guild | null>): boolean {
+  for (const guild of guildMap.values()) {
+    if (!guild) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function getFailedGuildFetches(guildMap: Map<Snowflake, Guild | null>): Snowflake[] {
+  const failedFetches = [];
+
+  for (const [id, guild] of guildMap) {
+    if (!guild) {
+      failedFetches.push(id);
+    }
+  }
+
+  return failedFetches;
 }
 
 async function handleServerConfigUpdates(user: User, newServerIDs: Snowflake[], client: Client) {
