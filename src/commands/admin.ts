@@ -3,7 +3,6 @@ import { Command } from '../handler/classes/Command';
 import { config } from '../config';
 import { AdminModelController } from '../database/model/AdminModelController';
 import { InfoEmbedBuilder } from '../builders';
-import { getUserMap } from '../util/discord';
 import Logger from '../log/logger';
 
 export default new Command({
@@ -46,11 +45,16 @@ export default new Command({
     await interaction.deferReply();
 
     if (interaction.user.id !== config.superuser) {
-      return interaction.editReply('You do not have permission to use this command.');
+      await interaction.editReply('You do not have permission to use this command.');
+      Logger.warn(`${interaction.user.username} attempted to use /admin without permission.`);
+      return;
     }
 
     if (!interaction.guild || interaction.guild.id !== config.adminServerID) {
       await interaction.editReply('This command can only be used in the admin server.');
+      Logger.warn(
+        `${interaction.user.username} attempted to use /admin outside of the admin server.`,
+      );
       return;
     }
 
