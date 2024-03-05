@@ -3,20 +3,27 @@ import { pgClient } from '../..';
 
 export type DbSpammer = {
   id: Snowflake;
+  is_active: boolean;
   screenshot_proof: string | null;
   explanation: string | null;
   created_at: Date;
+  updated_at: Date;
+  last_changed_by: Snowflake;
 };
 
 export abstract class SpammerModelController {
-  public static async createSpammer(
-    id: Snowflake,
-    screenshot_proof?: string | null,
-    explanation?: string | null,
-  ): Promise<DbSpammer> {
+  public static async createSpammer(options: {
+    id: Snowflake;
+    last_changed_by: Snowflake;
+    screenshot_proof?: string | null;
+    explanation?: string | null;
+    is_active?: boolean;
+  }): Promise<DbSpammer> {
+    const { id, last_changed_by, screenshot_proof, explanation, is_active = true } = options;
+
     const spammer = await pgClient.query<DbSpammer>(
-      'INSERT INTO spammers (id, screenshot_proof, explanation) VALUES ($1, $2, $3) RETURNING *',
-      [id, screenshot_proof || null, explanation || null],
+      'INSERT INTO spammers (id, screenshot_proof, explanation, is_active, last_changed_by) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [id, screenshot_proof || null, explanation || null, is_active, last_changed_by],
     );
 
     return spammer.rows[0];
@@ -24,6 +31,32 @@ export abstract class SpammerModelController {
 
   public static async getSpammer(id: Snowflake): Promise<DbSpammer> {
     const spammer = await pgClient.query<DbSpammer>('SELECT * FROM spammers WHERE id = $1', [id]);
+
+    return spammer.rows[0];
+  }
+
+  public static async deactivateSpammer(options: {
+    id: Snowflake;
+    explanation: string;
+    last_changed_by: Snowflake;
+  }): Promise<DbSpammer> {
+    const spammer = await pgClient.query<DbSpammer>(
+      'UPDATE spammers SET is_active = false, explanation = $2, last_changed_by = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
+      [options.id, options.explanation, options.last_changed_by],
+    );
+
+    return spammer.rows[0];
+  }
+
+  public static async reactivateSpammer(options: {
+    id: Snowflake;
+    explanation: string;
+    last_changed_by: Snowflake;
+  }): Promise<DbSpammer> {
+    const spammer = await pgClient.query<DbSpammer>(
+      'UPDATE spammers SET is_active = true, explanation = $2, last_changed_by = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
+      [options.id, options.explanation, options.last_changed_by],
+    );
 
     return spammer.rows[0];
   }
@@ -37,32 +70,15 @@ export abstract class SpammerModelController {
     return spammer.rows[0];
   }
 
-  public static async getAllSpammers(): Promise<DbSpammer[]> {
+  public static async getSpammers(limit?: number): Promise<DbSpammer[]> {
+    if (limit) {
+      const spammers = await pgClient.query<DbSpammer>('SELECT * FROM spammers LIMIT $1', [limit]);
+
+      return spammers.rows;
+    }
+
     const spammers = await pgClient.query<DbSpammer>('SELECT * FROM spammers');
 
     return spammers.rows;
-  }
-
-  public static async updateSpammer(updateSpammer: {
-    id: Snowflake;
-    screenshot_proof?: string | null;
-    explanation?: string | null;
-  }): Promise<DbSpammer> {
-    const previous = await this.getSpammer(updateSpammer.id);
-
-    if (!updateSpammer.screenshot_proof) {
-      updateSpammer.screenshot_proof = previous.screenshot_proof;
-    }
-
-    if (!updateSpammer.explanation) {
-      updateSpammer.explanation = previous.explanation;
-    }
-
-    const spammer = await pgClient.query<DbSpammer>(
-      'UPDATE spammers SET screenshot_proof = $1, explanation = $2 WHERE id = $3 RETURNING *',
-      [updateSpammer.screenshot_proof, updateSpammer.explanation, updateSpammer.id],
-    );
-
-    return spammer.rows[0];
   }
 }
