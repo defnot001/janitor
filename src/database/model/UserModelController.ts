@@ -13,11 +13,9 @@ export abstract class UserModelController {
     id: Snowflake;
     servers: Snowflake[];
   }): Promise<DbUser> {
-    const serverIDs = createUser.servers.push(config.adminServerID);
-
     const user = await pgClient.query<DbUser>(
       'INSERT INTO users (id, servers) VALUES ($1, $2) RETURNING *',
-      [createUser.id, serverIDs],
+      [createUser.id, createUser.servers],
     );
 
     return user.rows[0];
@@ -33,11 +31,9 @@ export abstract class UserModelController {
     id: Snowflake;
     servers: Snowflake[];
   }): Promise<DbUser> {
-    const serverIDs = updateUser.servers.push(config.adminServerID);
-
     const user = await pgClient.query<DbUser>(
       'UPDATE users SET servers = $1 WHERE id = $2 RETURNING *',
-      [serverIDs, updateUser.id],
+      [updateUser.servers, updateUser.id],
     );
 
     return user.rows[0];
