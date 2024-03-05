@@ -2,10 +2,8 @@ import {
   ApplicationCommandOptionType,
   ChannelType,
   Client,
-  GuildTextChannelType,
   Snowflake,
   TextChannel,
-  User,
   escapeMarkdown,
   inlineCode,
   time,
@@ -18,17 +16,16 @@ import {
   ServerConfigModelController,
   displayActionLevel,
 } from '../database/model/ServerConfigModelController';
-import { DbUser, UserModelController } from '../database/model/UserModelController';
-import { ScriptElementKindModifier, server } from 'typescript';
-import { pgClient } from '..';
+import { UserModelController } from '../database/model/UserModelController';
 import { InfoEmbedBuilder } from '../util/builders';
+import { SpammerModelController } from '../database/model/SpammerModelController';
 
 export default new Command({
   name: 'adminconfig',
   description: "Subcommands for admins to inspect the bot's server configs",
   options: [
     {
-      name: 'display',
+      name: 'display_configs',
       description: 'Display the server configs for one or multiple servers',
       type: ApplicationCommandOptionType.Subcommand,
       options: [
@@ -37,6 +34,19 @@ export default new Command({
           description:
             'The ID(s) of the server(s) to display the config for. Separate multiple IDs with a comma (,). Max 5.',
           type: ApplicationCommandOptionType.String,
+          required: true,
+        },
+      ],
+    },
+    {
+      name: 'delete_spammer',
+      description: 'Delete a spammer from the database',
+      type: ApplicationCommandOptionType.Subcommand,
+      options: [
+        {
+          name: 'user',
+          description: 'The user to delete from the spammer list',
+          type: ApplicationCommandOptionType.User,
           required: true,
         },
       ],
@@ -59,9 +69,9 @@ export default new Command({
       return;
     }
 
-    const subcommand = args.getSubcommand() as 'display';
+    const subcommand = args.getSubcommand() as 'display_configs' | 'delete_spammer';
 
-    if (subcommand === 'display') {
+    if (subcommand === 'display_configs') {
       const serverIDs = args
         .getString('server', true)
         .split(',')
@@ -152,6 +162,35 @@ export default new Command({
       } catch (e) {
         await interaction.editReply('An error occurred while fetching the server configs.');
         Logger.error(`An error occurred while fetching the server configs: ${e}`);
+        return;
+      }
+    }
+
+    if (subcommand === 'delete_spammer') {
+      const user = args.getUser('user', true);
+
+      try {
+        const dbSpammer = await SpammerModelController.getSpammer(user.id);
+
+        if (!dbSpammer) {
+          await interaction.editReply('The user is not in the spammer list.');
+          return;
+        }
+
+        await UserModelController.deleteUser(user.id);
+
+        await interaction.editReply(
+          `User ${escapeMarkdown(user.globalName ?? user.username)} (${inlineCode(
+            user.id,
+          )}) has been deleted from the database.`,
+        );
+
+        Logger.info(
+          `${interaction.user.username} deleted user ${user.globalName ?? user.username} from the spammer list.`,
+        );
+      } catch (e) {
+        await interaction.editReply('An error occurred while deleting the user from the database.');
+        Logger.error(`An error occurred while deleting the user from the database: ${e}`);
         return;
       }
     }
