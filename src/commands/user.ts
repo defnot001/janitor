@@ -1,6 +1,7 @@
 import {
   ApplicationCommandOptionType,
   Client,
+  Guild,
   Snowflake,
   escapeMarkdown,
   inlineCode,
@@ -13,6 +14,7 @@ import { AdminModelController } from '../database/model/AdminModelController';
 import { UserModelController } from '../database/model/UserModelController';
 import { InfoEmbedBuilder } from '../builders';
 import { getServerMap, getUserMap } from '../util/discord';
+import { ServerConfigModelController } from '../database/model/ServerConfigModelController';
 
 export default new Command({
   name: 'user',
@@ -227,7 +229,8 @@ export default new Command({
           return;
         }
 
-        const serverNames = await fetchServerNames(dbUser.servers, client);
+        const guilds = await fetchGuilds(dbUser.servers, client);
+        const serverNames = guilds.map((guild) => guild.name);
 
         const infoEmbed = new InfoEmbedBuilder(interaction.user, {
           title: `User Info for ${escapeMarkdown(user.globalName ?? user.username)}`,
@@ -268,11 +271,28 @@ export default new Command({
 
       try {
         const dbUser = await UserModelController.createUser({ id: user.id, servers: serverIDs });
-        const serverNames = await fetchServerNames(serverIDs, client);
+        const guilds = await fetchGuilds(serverIDs, client);
+
+        const serverNames = guilds.map((guild) => guild.name);
 
         await interaction.editReply(
           `Added User ${escapeMarkdown(user.globalName ?? user.username)} with ID ${inlineCode(dbUser.id)} to whitelist.\nThey are allowed to use the bot in the following servers: ${serverNames.join(', ')}`,
         );
+
+        for await (const guild of guilds) {
+          const created = await ServerConfigModelController.createServerConfigIfNotExists(guild.id);
+
+          if (created) {
+            Logger.info(`Created empty server config for server ${guild.name} (${guild.id})`);
+            await interaction.followUp(
+              `Created empty server config for server ${escapeMarkdown(guild.name)} (${inlineCode(guild.id)})`,
+            );
+          } else {
+            Logger.debug(
+              `Server config already exists for server ${guild.name} (${guild.id}). Skipping creation.`,
+            );
+          }
+        }
       } catch (e) {
         Logger.error(`Error adding user to whitelist: ${e}`);
         await interaction.editReply('An error occurred while adding the user to the whitelist.');
@@ -281,23 +301,75 @@ export default new Command({
     }
 
     if (subcommand === 'update') {
-      const serverIDs = args
+      const newServerIDs = args
         .getString('server_id', true)
         .split(',')
         .map((id) => id.trim());
 
-      if (serverIDs.length === 0) {
+      if (newServerIDs.length === 0) {
         await interaction.editReply('No server IDs provided.');
         return;
       }
 
       try {
-        const dbUser = await UserModelController.updateUser({ id: user.id, servers: serverIDs });
-        const serverNames = await fetchServerNames(serverIDs, client);
+        const currentUserData = await UserModelController.getUser(user.id);
+
+        if (!currentUserData) {
+          await interaction.editReply(
+            `User ${escapeMarkdown(user.globalName ?? user.username)} with ID ${inlineCode(user.id)} is not on the whitelist.`,
+          );
+          return;
+        }
+
+        const oldServerIDs = currentUserData ? currentUserData.servers : [];
+
+        const newDbUser = await UserModelController.updateUser({
+          id: user.id,
+          servers: newServerIDs,
+        });
+        const newGuilds = await fetchGuilds(newServerIDs, client);
+        const newServerNames = newGuilds.map((newGuilds) => newGuilds.name);
 
         await interaction.editReply(
-          `Updated User ${escapeMarkdown(user.globalName ?? user.username)} with ID ${inlineCode(dbUser.id)} on whitelist.\nThey are allowed to use the bot in the following servers: ${serverNames.join(', ')}`,
+          `Updated User ${escapeMarkdown(user.globalName ?? user.username)} with ID ${inlineCode(newDbUser.id)} on whitelist.\nThey are allowed to use the bot in the following servers: ${newServerNames.join(', ')}`,
         );
+
+        const serversAdded = newServerIDs.filter((id) => !oldServerIDs.includes(id));
+        const serversRemoved = oldServerIDs.filter((id) => !newServerIDs.includes(id));
+
+        for (const serverID of serversAdded) {
+          const guild = await client.guilds.fetch(serverID);
+          const created = await ServerConfigModelController.createServerConfigIfNotExists(serverID);
+
+          if (created) {
+            Logger.info(`Created empty server config for server ${guild.name} (${serverID})`);
+            await interaction.followUp(
+              `Created empty server config for server ${escapeMarkdown(guild.name)} (${inlineCode(serverID)})`,
+            );
+          } else {
+            Logger.debug(
+              `Server config already exists for server ${guild.name} (${serverID}). Skipping creation.`,
+            );
+          }
+        }
+
+        for (const serverID of serversRemoved) {
+          const guild = await client.guilds.fetch(serverID);
+          const deleted = await ServerConfigModelController.deleteServerConfigIfNeeded(serverID);
+
+          if (deleted) {
+            Logger.info(
+              `Deleted server config for server ${guild.name} (${serverID}) because it's no longer in use.`,
+            );
+            await interaction.followUp(
+              `Deleted server config for server ${escapeMarkdown(guild.name)} (${inlineCode(serverID)}) because it's no longer in use.`,
+            );
+          } else {
+            Logger.debug(
+              `Server config for server ${guild.name} (${serverID}) still in use. Skipping deletion.`,
+            );
+          }
+        }
       } catch (e) {
         Logger.error(`Error updating user on whitelist: ${e}`);
         await interaction.editReply('An error occurred while updating the user on the whitelist.');
@@ -312,6 +384,29 @@ export default new Command({
         await interaction.editReply(
           `Removed User ${escapeMarkdown(user.globalName ?? user.username)} with ID ${inlineCode(dbUser.id)} from whitelist.`,
         );
+
+        if (dbUser.servers.length === 0) {
+          return;
+        }
+
+        const guilds = await fetchGuilds(dbUser.servers, client);
+
+        for await (const guild of guilds) {
+          const deleted = await ServerConfigModelController.deleteServerConfigIfNeeded(guild.id);
+
+          if (deleted) {
+            Logger.info(
+              `Deleted server config for server ${guild.name} (${guild.id}) because it's no longer in use.`,
+            );
+            await interaction.followUp(
+              `Deleted server config for server ${escapeMarkdown(guild.name)} (${inlineCode(guild.id)}) because it's no longer in use.`,
+            );
+          } else {
+            Logger.debug(
+              `Server config for server ${guild.name} (${guild.id}) still in use. Skipping deletion.`,
+            );
+          }
+        }
       } catch (e) {
         Logger.error(`Error removing user from whitelist: ${e}`);
         await interaction.editReply(
@@ -323,11 +418,11 @@ export default new Command({
   },
 });
 
-async function fetchServerNames(ids: Snowflake[], client: Client) {
+async function fetchGuilds(ids: Snowflake[], client: Client): Promise<Guild[]> {
   return await Promise.all(
     ids.map(async (id) => {
       const server = await client.guilds.fetch(id);
-      return server.name;
+      return server;
     }),
   );
 }
