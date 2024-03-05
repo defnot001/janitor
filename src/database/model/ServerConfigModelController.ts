@@ -37,6 +37,21 @@ export abstract class ServerConfigModelController {
     return serverConfig.rows[0];
   }
 
+  public static async createServerConfigIfNotExists(
+    server_id: Snowflake,
+  ): Promise<DbServerConfig | null> {
+    const result = await pgClient.query<DbServerConfig>(
+      'INSERT INTO server_configs (server_id) VALUES ($1) ON CONFLICT (server_id) DO NOTHING RETURNING *',
+      [server_id],
+    );
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    return result.rows[0];
+  }
+
   public static async getServerConfig(server_id: Snowflake): Promise<DbServerConfig> {
     const serverConfig = await pgClient.query<DbServerConfig>(
       'SELECT * FROM server_configs WHERE server_id = $1',
@@ -78,5 +93,19 @@ export abstract class ServerConfigModelController {
     );
 
     return serverConfig.rows[0];
+  }
+
+  public static async deleteServerConfigIfNeeded(serverID: Snowflake): Promise<boolean> {
+    const userCheckResult = await pgClient.query<{ id: Snowflake }>(
+      'SELECT id FROM users WHERE $1 = ANY(servers)',
+      [serverID],
+    );
+
+    if (userCheckResult.rows.length === 0) {
+      await this.deleteServerConfig(serverID);
+      return true;
+    }
+
+    return false;
   }
 }
