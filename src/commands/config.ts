@@ -173,7 +173,7 @@ async function isUserAllowed(
       return null;
     }
 
-    if (!dbUser.servers.includes(guild.id) && guild.id !== config.adminServerID) {
+    if (!dbUser.servers.includes(guild.id) || guild.id === config.adminServerID) {
       await interaction.editReply('You are not allowed to use this command here.');
       Logger.warn(
         `${interaction.user.globalName ?? interaction.user.username} attempted to use /config in ${guild.name} but the user is not allowed to use it there.`,
