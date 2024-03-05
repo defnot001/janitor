@@ -71,14 +71,15 @@ export abstract class SpammerModelController {
   }
 
   public static async getSpammers(limit?: number): Promise<DbSpammer[]> {
-    if (limit) {
-      const spammers = await pgClient.query<DbSpammer>('SELECT * FROM spammers LIMIT $1', [limit]);
+    let query = 'SELECT * FROM spammers ORDER BY created_at DESC';
+    const values: number[] = [];
 
-      return spammers.rows;
+    if (limit !== undefined) {
+      query += ' LIMIT $1';
+      values.push(limit);
     }
 
-    const spammers = await pgClient.query<DbSpammer>('SELECT * FROM spammers');
-
-    return spammers.rows;
+    const result = await pgClient.query<DbSpammer>(query, values);
+    return result.rows;
   }
 }
