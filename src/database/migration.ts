@@ -1,5 +1,5 @@
 import { Client } from 'pg';
-import { projectPaths } from './config';
+import { projectPaths } from '../config';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
