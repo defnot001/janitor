@@ -30,6 +30,7 @@ export type DbServerConfig = {
   ping_users: boolean;
   action_level: ActionLevel;
   timeout_users_with_role: boolean;
+  ignored_roles: Snowflake[];
   created_at: Date;
   updated_at: Date;
 };
@@ -40,6 +41,7 @@ type CreateServerConfig = {
   log_channel?: Snowflake | null;
   ping_users?: boolean | null;
   timeout_users_with_role?: boolean | null;
+  ignored_roles?: Snowflake[] | null;
 };
 
 export abstract class ServerConfigModelController {
@@ -47,13 +49,14 @@ export abstract class ServerConfigModelController {
     createServerConfig: CreateServerConfig,
   ): Promise<DbServerConfig> {
     const serverConfig = await pgClient.query<DbServerConfig>(
-      'INSERT INTO server_configs (server_id, log_channel, ping_users, action_level, timeout_users_with_role) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      'INSERT INTO server_configs (server_id, log_channel, ping_users, action_level, timeout_users_with_role, ignored_roles) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
       [
         createServerConfig.server_id,
         createServerConfig.log_channel || null,
         createServerConfig.ping_users || false,
         createServerConfig.action_level || 0,
         createServerConfig.timeout_users_with_role || false,
+        createServerConfig.ignored_roles || [],
       ],
     );
 
@@ -111,10 +114,18 @@ export abstract class ServerConfigModelController {
     const pingUsers = updateServerConfig.ping_users || currentServerConfig.ping_users;
     const timeoutUsersWithRole =
       updateServerConfig.timeout_users_with_role || currentServerConfig.timeout_users_with_role;
+    const ignoredRoles = updateServerConfig.ignored_roles || currentServerConfig.ignored_roles;
 
     const serverConfig = await pgClient.query<DbServerConfig>(
-      'UPDATE server_configs SET log_channel = $1, ping_users = $2, action_level = $3, timeout_users_with_role = $4, updated_at = CURRENT_TIMESTAMP WHERE server_id = $5 RETURNING *',
-      [logChannel, pingUsers, actionLevel, timeoutUsersWithRole, updateServerConfig.server_id],
+      'UPDATE server_configs SET log_channel = $1, ping_users = $2, action_level = $3, timeout_users_with_role = $4, ignored_roles = $5, updated_at = CURRENT_TIMESTAMP WHERE server_id = $6 RETURNING *',
+      [
+        logChannel,
+        pingUsers,
+        actionLevel,
+        timeoutUsersWithRole,
+        ignoredRoles,
+        updateServerConfig.server_id,
+      ],
     );
 
     return serverConfig.rows[0];

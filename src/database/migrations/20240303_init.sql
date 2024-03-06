@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS server_configs (
     ping_users BOOLEAN NOT NULL DEFAULT FALSE,
     action_level INT NOT NULL DEFAULT 0,
     timeout_users_with_role BOOLEAN NOT NULL DEFAULT FALSE,
-    ignored_roles VARCHAR(20)[],
+    ignored_roles VARCHAR(20)[] NOT NULL DEFAULT '{}',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     primary key (server_id)
