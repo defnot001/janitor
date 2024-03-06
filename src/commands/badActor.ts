@@ -26,7 +26,9 @@ type Subcommand =
   | 'reactivate'
   | 'display_latest'
   | 'display_by_user'
-  | 'display_by_id';
+  | 'display_by_id'
+  | 'add_screenshot'
+  | 'update_explanation';
 
 export default new Command({
   name: 'badactor',
@@ -74,7 +76,7 @@ export default new Command({
         {
           name: 'id',
           description: 'The ID of bad actor entry to deactivate',
-          type: ApplicationCommandOptionType.Number,
+          type: ApplicationCommandOptionType.Integer,
           required: true,
         },
         {
@@ -93,12 +95,50 @@ export default new Command({
         {
           name: 'id',
           description: 'The ID of bad actor entry to reactivate',
-          type: ApplicationCommandOptionType.Number,
+          type: ApplicationCommandOptionType.Integer,
           required: true,
         },
         {
           name: 'reason',
           description: 'The reason for reactivate the report',
+          type: ApplicationCommandOptionType.String,
+          required: true,
+        },
+      ],
+    },
+    {
+      name: 'add_screenshot',
+      description: "Add a screenshot to an existing report that doesn't have one yet",
+      type: ApplicationCommandOptionType.Subcommand,
+      options: [
+        {
+          name: 'id',
+          description: 'The ID of the bad actor entry to add the screenshot to',
+          type: ApplicationCommandOptionType.Integer,
+          required: true,
+        },
+        {
+          name: 'screenshot',
+          description: 'The screenshot to add to the report',
+          type: ApplicationCommandOptionType.Attachment,
+          required: true,
+        },
+      ],
+    },
+    {
+      name: 'update_explanation',
+      description: 'Add an explanation to an existing report or update the existing one',
+      type: ApplicationCommandOptionType.Subcommand,
+      options: [
+        {
+          name: 'id',
+          description: 'The ID of the bad actor entry to update the explanation ofs',
+          type: ApplicationCommandOptionType.Integer,
+          required: true,
+        },
+        {
+          name: 'explanation',
+          description: 'The explanation to add to the report',
           type: ApplicationCommandOptionType.String,
           required: true,
         },
@@ -136,7 +176,7 @@ export default new Command({
         {
           name: 'id',
           description: 'The ID of the entry to display',
-          type: ApplicationCommandOptionType.Number,
+          type: ApplicationCommandOptionType.Integer,
           required: true,
         },
       ],
@@ -381,6 +421,202 @@ export default new Command({
           });
         }
       });
+    }
+
+    if (subcommand === 'deactivate') {
+      const id = args.getInteger('id', true);
+      const reason = args.getString('reason', true);
+
+      try {
+        const badActor = await BadActorModelController.getBadActorById(id);
+
+        if (!badActor) {
+          await interaction.editReply('This entry does not exist.');
+          return;
+        }
+
+        if (!badActor.is_active) {
+          await interaction.editReply('This entry is already deactivated.');
+          return;
+        }
+
+        await BadActorModelController.deactivateBadActor({
+          id,
+          explanation: reason,
+          last_changed_by: interaction.user.id,
+        });
+
+        Logger.info(
+          `User ${interaction.user.globalName ?? interaction.user.username} deactivated bad actor ${id} in ${interactionGuild.name}.`,
+        );
+
+        try {
+          const res = await getBadActorEmbeds([badActor], interaction.user, client);
+          const embeds = res.map(([embed]) => embed);
+          const attachments = res
+            .map(([, attachment]) => attachment)
+            .filter((a) => a !== null) as AttachmentBuilder[];
+
+          await interaction.editReply({ embeds, files: attachments });
+        } catch (e) {
+          await interaction.editReply(
+            'Failed to send the bad actor embed. The entry has been deactivated.',
+          );
+          Logger.error(`Failed to send the bad actor embed: ${e}`);
+        }
+      } catch (e) {
+        await interaction.editReply(`Failed to get the bad actor from the database.`);
+        Logger.error(`Failed to get the bad actor from the database: ${e}`);
+        return;
+      }
+    }
+
+    if (subcommand === 'reactivate') {
+      const id = args.getInteger('id', true);
+      const reason = args.getString('reason', true);
+
+      try {
+        const badActor = await BadActorModelController.getBadActorById(id);
+
+        if (!badActor) {
+          await interaction.editReply('This entry does not exist.');
+          return;
+        }
+
+        if (badActor.is_active) {
+          await interaction.editReply('This entry is already activated.');
+          return;
+        }
+
+        await BadActorModelController.reactivateBadActor({
+          id,
+          explanation: reason,
+          last_changed_by: interaction.user.id,
+        });
+
+        Logger.info(
+          `User ${interaction.user.globalName ?? interaction.user.username} reactivated bad actor ${id} in ${interactionGuild.name}.`,
+        );
+
+        try {
+          const res = await getBadActorEmbeds([badActor], interaction.user, client);
+          const embeds = res.map(([embed]) => embed);
+          const attachments = res
+            .map(([, attachment]) => attachment)
+            .filter((a) => a !== null) as AttachmentBuilder[];
+
+          await interaction.editReply({ embeds, files: attachments });
+        } catch (e) {
+          await interaction.editReply(
+            'Failed to send the bad actor embed. The entry has been reactivated.',
+          );
+          Logger.error(`Failed to send the bad actor embed: ${e}`);
+        }
+      } catch (e) {
+        await interaction.editReply(`Failed to get the bad actor from the database.`);
+        Logger.error(`Failed to get the bad actor from the database: ${e}`);
+        return;
+      }
+    }
+
+    if (subcommand === 'add_screenshot') {
+      const id = args.getInteger('id', true);
+      const attachment = args.getAttachment('screenshot', true);
+
+      try {
+        const badActor = await BadActorModelController.getBadActorById(id);
+
+        if (!badActor) {
+          await interaction.editReply('This entry does not exist.');
+          return;
+        }
+
+        if (!badActor.is_active) {
+          await interaction.editReply(
+            'This entry is deactivated. You cannot add a screenshot to it.',
+          );
+          return;
+        }
+
+        if (badActor.screenshot_proof) {
+          await interaction.editReply('This entry already has a screenshot.');
+          return;
+        }
+
+        const screenshot = new Screenshot(attachment, interaction.user.id);
+        await screenshot.saveToFileSystem();
+
+        await BadActorModelController.updateScreenshotProof(
+          id,
+          screenshot.path,
+          interaction.user.id,
+        );
+
+        Logger.info(
+          `User ${interaction.user.globalName ?? interaction.user.username} added a screenshot to bad actor ${id} in ${interactionGuild.name}.`,
+        );
+
+        try {
+          const res = await getBadActorEmbeds([badActor], interaction.user, client);
+          const embeds = res.map(([embed]) => embed);
+          const attachments = res
+            .map(([, attachment]) => attachment)
+            .filter((a) => a !== null) as AttachmentBuilder[];
+
+          await interaction.editReply({ embeds, files: attachments });
+        } catch (e) {
+          await interaction.editReply('Failed to send the bad actor embed.');
+          Logger.error(`Failed to send the bad actor embed: ${e}`);
+        }
+      } catch (e) {
+        await interaction.editReply(`Failed to get the bad actor from the database.`);
+        Logger.error(`Failed to get the bad actor from the database: ${e}`);
+        return;
+      }
+    }
+
+    if (subcommand === 'update_explanation') {
+      const id = args.getInteger('id', true);
+      const explanation = args.getString('explanation', true);
+
+      try {
+        const badActor = await BadActorModelController.getBadActorById(id);
+
+        if (!badActor) {
+          await interaction.editReply('This entry does not exist.');
+          return;
+        }
+
+        if (!badActor.is_active) {
+          await interaction.editReply(
+            'This entry is deactivated. You cannot add an explanation to it.',
+          );
+          return;
+        }
+
+        await BadActorModelController.updateExplanation(id, explanation, interaction.user.id);
+
+        Logger.info(
+          `User ${interaction.user.globalName ?? interaction.user.username} added an explanation to bad actor ${id} in ${interactionGuild.name}.`,
+        );
+
+        try {
+          const res = await getBadActorEmbeds([badActor], interaction.user, client);
+          const embeds = res.map(([embed]) => embed);
+          const attachments = res
+            .map(([, attachment]) => attachment)
+            .filter((a) => a !== null) as AttachmentBuilder[];
+
+          await interaction.editReply({ embeds, files: attachments });
+        } catch (e) {
+          await interaction.editReply('Failed to send the bad actor embed.');
+          Logger.error(`Failed to send the bad actor embed: ${e}`);
+        }
+      } catch (e) {
+        await interaction.editReply(`Failed to get the bad actor from the database.`);
+        Logger.error(`Failed to get the bad actor from the database: ${e}`);
+        return;
+      }
     }
   },
 });

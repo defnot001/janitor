@@ -121,4 +121,30 @@ export abstract class BadActorModelController {
       .query<DbBadActor>('SELECT * FROM bad_actors ORDER BY created_at DESC LIMIT $1', [limit])
       .then((r) => r.rows);
   }
+
+  public static async updateScreenshotProof(
+    id: number,
+    screenshot: string,
+    updatingUserID: Snowflake,
+  ): Promise<DbBadActor> {
+    const badActor = await pgClient.query<DbBadActor>(
+      'UPDATE bad_actors SET screenshot_proof = $2, last_changed_by = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
+      [id, screenshot, updatingUserID],
+    );
+
+    return badActor.rows[0];
+  }
+
+  public static async updateExplanation(
+    id: number,
+    explanation: string,
+    updatingUserID: Snowflake,
+  ): Promise<DbBadActor> {
+    const badActor = await pgClient.query<DbBadActor>(
+      'UPDATE bad_actors SET explanation = $2, last_changed_by = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
+      [id, explanation, updatingUserID],
+    );
+
+    return badActor.rows[0];
+  }
 }
