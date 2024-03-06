@@ -11,15 +11,17 @@ CREATE TABLE IF NOT EXISTS users (
     primary key (id)
 );
 
-CREATE TABLE IF NOT EXISTS spammers (
-    id VARCHAR(20) NOT NULL,
+CREATE TABLE IF NOT EXISTS bad_actors (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(20) NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    actor_type VARCHAR(15) NOT NULL,
+    originally_created_in VARCHAR(20) NOT NULL,
     screenshot_proof VARCHAR(50),
     explanation TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_changed_by VARCHAR(20) NOT NULL,
-    primary key (id)
+    last_changed_by VARCHAR(20) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS server_configs (
