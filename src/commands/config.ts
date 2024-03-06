@@ -75,10 +75,16 @@ export default new Command({
           description: 'Whether or not to timeout users with a specific role',
           type: ApplicationCommandOptionType.Boolean,
         },
+        {
+          name: 'ignoredroles',
+          description:
+            'Role IDs to ignore when taking action. Separate multiple roles with a comma',
+          type: ApplicationCommandOptionType.String,
+        },
       ],
     },
   ],
-  execute: async ({ interaction, args, client }) => {
+  execute: async ({ interaction, args }) => {
     await interaction.deferReply();
 
     const interactionGuild = interaction.guild;
@@ -128,6 +134,11 @@ export default new Command({
       const pingUsers = args.getBoolean('pingusers');
       const actionLevel = args.getInteger('actionlevel');
       const timeoutUsersWithRole = args.getBoolean('timeoutuserswithrole');
+      const ignoredRoles =
+        args
+          .getString('ignoredroles')
+          ?.split(',')
+          .map((id) => id.trim()) ?? [];
 
       try {
         const serverConfig = await ServerConfigModelController.updateServerConfig({
@@ -136,6 +147,7 @@ export default new Command({
           ping_users: pingUsers,
           action_level: actionLevel,
           timeout_users_with_role: timeoutUsersWithRole,
+          ignored_roles: ignoredRoles,
         });
 
         if (!serverConfig) {
@@ -220,6 +232,10 @@ function buildServerConfigEmbed(details: {
       {
         name: 'Timeout Users With Role',
         value: details.serverConfig.timeout_users_with_role ? 'Enabled' : 'Disabled',
+      },
+      {
+        name: 'Ignored Roles',
+        value: details.serverConfig.ignored_roles.join('\n') || 'None',
       },
       {
         name: 'Created At',
