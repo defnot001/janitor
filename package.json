@@ -19,7 +19,7 @@
     "dev": "bun run src/index.ts",
     "dev:watch": "bun run --watch src/index.ts",
     "deploy": "NODE_ENV=production bun run src/index.ts",
-    "migrate:dev": "bun run src/migration.ts",
+    "migrate:dev": "bun run src/database/migration.ts",
     "migrate:prod": "NODE_ENV=production bun run src/migration.ts"
   }
 }
