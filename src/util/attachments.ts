@@ -1,7 +1,7 @@
 import { Attachment, AttachmentBuilder, Snowflake } from 'discord.js';
 import path from 'path';
 import * as fs from 'fs/promises';
-import Logger from '../log/logger';
+import Logger from './logger';
 
 export class Screenshot {
   private readonly storage_directory_path = 'screenshots';

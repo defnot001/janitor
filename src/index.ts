@@ -2,7 +2,7 @@ import { GatewayIntentBits } from 'discord.js';
 import { ExtendedClient } from './handler/classes/ExtendedClient';
 import { projectPaths } from './config';
 import { Client } from 'pg';
-import Logger from './log/logger';
+import Logger from './util/logger';
 
 export const client = new ExtendedClient({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildModeration],
@@ -13,7 +13,7 @@ await client.start({
   commandsPath: projectPaths.commands,
   eventsPath: projectPaths.events,
   globalCommands: true,
-  registerCommands: true,
+  registerCommands: false,
 });
 
 export const pgClient = new Client({

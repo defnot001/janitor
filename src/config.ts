@@ -1,6 +1,6 @@
 import path from 'path';
 import { env } from 'bun';
-import Logger from './log/logger';
+import Logger from './util/logger';
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'development';
 Logger.info(`Loaded ${env['NODE_ENV']} config.`);

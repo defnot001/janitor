@@ -2,7 +2,7 @@ import type { CommandInteractionOptionResolver, Snowflake, TextBasedChannel } fr
 import { Event } from '../handler/classes/Event';
 import { client } from '..';
 import { ExtendedInteraction } from '../handler/types';
-import Logger from '../log/logger';
+import Logger from '../util/logger';
 
 export default new Event('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) {

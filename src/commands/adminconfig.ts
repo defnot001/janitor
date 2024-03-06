@@ -11,7 +11,7 @@ import {
 import { Command } from '../handler/classes/Command';
 import { AdminModelController } from '../database/model/AdminModelController';
 import { config } from '../config';
-import Logger from '../log/logger';
+import Logger from '../util/logger';
 import {
   ServerConfigModelController,
   displayActionLevel,

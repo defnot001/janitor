@@ -10,7 +10,7 @@ import {
 } from 'discord.js';
 import { Command } from '../handler/classes/Command';
 import { config } from '../config';
-import Logger from '../log/logger';
+import Logger from '../util/logger';
 import { AdminModelController } from '../database/model/AdminModelController';
 import { UserModelController } from '../database/model/UserModelController';
 import { InfoEmbedBuilder } from '../util/builders';

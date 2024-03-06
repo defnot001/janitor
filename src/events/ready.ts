@@ -1,6 +1,6 @@
 import { ActivityType } from 'discord.js';
 import { Event } from '../handler/classes/Event';
-import Logger from '../log/logger';
+import Logger from '../util/logger';
 // import { client } from '../index';
 // import { config } from '../config';
 

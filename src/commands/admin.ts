@@ -3,7 +3,7 @@ import { Command } from '../handler/classes/Command';
 import { config } from '../config';
 import { AdminModelController } from '../database/model/AdminModelController';
 import { InfoEmbedBuilder } from '../util/builders';
-import Logger from '../log/logger';
+import Logger from '../util/logger';
 
 export default new Command({
   name: 'admin',

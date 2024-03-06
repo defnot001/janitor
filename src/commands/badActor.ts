@@ -13,7 +13,7 @@ import {
 import { Command } from '../handler/classes/Command';
 import { config, projectPaths } from '../config';
 import { DbUser, UserModelController } from '../database/model/UserModelController';
-import Logger from '../log/logger';
+import Logger from '../util/logger';
 import { DbBadActor, BadActorModelController } from '../database/model/BadActorModelController';
 import { InfoEmbedBuilder } from '../util/builders';
 import { Screenshot } from '../util/attachments';

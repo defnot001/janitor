@@ -17,7 +17,7 @@ import {
   displayActionLevel,
 } from '../database/model/ServerConfigModelController';
 import { getTextChannelByID } from './adminconfig';
-import Logger from '../log/logger';
+import Logger from '../util/logger';
 
 export default new Command({
   name: 'config',
