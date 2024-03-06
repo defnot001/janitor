@@ -18,7 +18,7 @@ import {
 } from '../database/model/ServerConfigModelController';
 import { UserModelController } from '../database/model/UserModelController';
 import { InfoEmbedBuilder } from '../util/builders';
-import { SpammerModelController } from '../database/model/SpammerModelController';
+import { BadActorModelController } from '../database/model/BadActorModelController';
 
 export default new Command({
   name: 'adminconfig',
@@ -39,14 +39,14 @@ export default new Command({
       ],
     },
     {
-      name: 'delete_spammer',
-      description: 'Delete a spammer from the database',
+      name: 'delete_bad_actor',
+      description: 'Delete a bad actor from the database',
       type: ApplicationCommandOptionType.Subcommand,
       options: [
         {
-          name: 'user',
-          description: 'The user to delete from the spammer list',
-          type: ApplicationCommandOptionType.User,
+          name: 'id',
+          description: 'The ID of the entry to delete',
+          type: ApplicationCommandOptionType.Integer,
           required: true,
         },
       ],
@@ -69,7 +69,7 @@ export default new Command({
       return;
     }
 
-    const subcommand = args.getSubcommand() as 'display_configs' | 'delete_spammer';
+    const subcommand = args.getSubcommand() as 'display_configs' | 'delete_bad_actor';
 
     if (subcommand === 'display_configs') {
       const serverIDs = args
@@ -138,6 +138,12 @@ export default new Command({
                   value: sc.timeout_users_with_role ? 'Enabled' : 'Disabled',
                 },
                 {
+                  name: 'Ignored Roles',
+                  value: sc.ignored_roles.length
+                    ? sc.ignored_roles.map((role) => `<@&${role}>`).join(', ')
+                    : 'None',
+                },
+                {
                   name: 'Created At',
                   value: `${time(new Date(sc.created_at), 'D')}\n(${time(new Date(sc.created_at), 'R')})`,
                   inline: true,
@@ -166,28 +172,39 @@ export default new Command({
       }
     }
 
-    if (subcommand === 'delete_spammer') {
-      const user = args.getUser('user', true);
+    if (subcommand === 'delete_bad_actor') {
+      const entryID = args.getInteger('id', true);
 
       try {
-        const dbSpammer = await SpammerModelController.getSpammer(user.id);
+        const dbEntry = await BadActorModelController.getBadActorById(entryID);
 
-        if (!dbSpammer) {
-          await interaction.editReply('The user is not in the spammer list.');
+        if (!dbEntry) {
+          await interaction.editReply('No active bad actor found with the provided ID.');
           return;
         }
 
-        await UserModelController.deleteUser(user.id);
+        await BadActorModelController.deleteBadActor(entryID);
 
-        await interaction.editReply(
-          `User ${escapeMarkdown(user.globalName ?? user.username)} (${inlineCode(
-            user.id,
-          )}) has been deleted from the database.`,
-        );
+        try {
+          const user = await client.users.fetch(dbEntry.user_id);
 
-        Logger.info(
-          `${interaction.user.username} deleted user ${user.globalName ?? user.username} from the spammer list.`,
-        );
+          await interaction.editReply(
+            `User ${escapeMarkdown(user.globalName ?? user.username)} (${inlineCode(
+              user.id,
+            )}) has been deleted from the bad actors list.`,
+          );
+          Logger.info(
+            `${interaction.user.globalName ?? interaction.user.username} deleted user with ID ${dbEntry.user_id} from the bad actors list.`,
+          );
+        } catch (e) {
+          Logger.error(`An error occurred while fetching user with ID ${dbEntry.user_id}: ${e}`);
+          Logger.info(
+            `${interaction.user.globalName ?? interaction.user.username} deleted user with ID ${dbEntry.user_id} from the bad actors list.`,
+          );
+          await interaction.editReply(
+            'Failed to fetch user from Discord. They might have been banned from Discord. The entry has been deleted from the database.',
+          );
+        }
       } catch (e) {
         await interaction.editReply('An error occurred while deleting the user from the database.');
         Logger.error(`An error occurred while deleting the user from the database: ${e}`);
