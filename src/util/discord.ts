@@ -1,4 +1,13 @@
-import { Snowflake, Client } from 'discord.js';
+import {
+  Snowflake,
+  Client,
+  ButtonStyle,
+  ButtonBuilder,
+  ActionRowBuilder,
+  TextChannel,
+  ComponentType,
+} from 'discord.js';
+import { ExtendedInteraction } from '../handler/types';
 
 export async function getServerMap(
   serverIDs: Snowflake[],
@@ -26,4 +35,37 @@ export async function getUserMap(
   }
 
   return userMap;
+}
+
+export function getConfirmCancelRow() {
+  const confirmButton = new ButtonBuilder({
+    style: ButtonStyle.Success,
+    label: 'Confirm',
+    customId: 'confirm',
+  });
+
+  const cancelButton = new ButtonBuilder({
+    style: ButtonStyle.Danger,
+    label: 'Cancel',
+    customId: 'cancel',
+  });
+
+  return new ActionRowBuilder<ButtonBuilder>({
+    components: [confirmButton, cancelButton],
+  });
+}
+
+export function getButtonCollector(interaction: ExtendedInteraction) {
+  const { channel } = interaction;
+  if (!channel) return;
+
+  if (channel instanceof TextChannel) {
+    return channel.createMessageComponentCollector<ComponentType.Button>({
+      filter: (i) => i.user.id === interaction.user.id,
+      max: 1,
+      time: 10000,
+    });
+  }
+
+  return;
 }
