@@ -157,7 +157,7 @@ export default new Command({
 
         const userEntries = users.map((user) => {
           const serverNames = user.servers.map((serverID) => serverMap.get(serverID));
-          return `${userMap.get(user.id)} (${inlineCode(user.id)})\n${serverNames.join(', ')}`;
+          return `${userMap.get(user.id)} (${inlineCode(user.id)}):\n${serverNames.join(', ')}`;
         });
 
         const listEmbed = new InfoEmbedBuilder(interaction.user, {
@@ -171,6 +171,8 @@ export default new Command({
         await interaction.editReply('An error occurred while getting all users.');
         return;
       }
+
+      return;
     }
 
     if (subcommand === 'list_by_server') {
@@ -216,6 +218,8 @@ export default new Command({
         await interaction.editReply('An error occurred while getting users by server.');
         return;
       }
+
+      return;
     }
 
     const user = args.getUser('user');
