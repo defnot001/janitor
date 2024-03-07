@@ -35,3 +35,11 @@ CREATE TABLE IF NOT EXISTS server_configs (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     primary key (server_id)
 );
+
+CREATE TABLE IF NOT EXISTS server_users (
+    server_id VARCHAR(20) NOT NULL,
+    user_id VARCHAR(20) NOT NULL,
+    FOREIGN KEY (server_id) REFERENCES server_configs(server_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (server_id, user_id)
+);
