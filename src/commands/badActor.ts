@@ -28,9 +28,9 @@ export type BadActorSubcommand =
   | 'display_by_user'
   | 'display_by_id'
   | 'add_screenshot'
+  | 'replace_screenshot'
   | 'update_explanation';
 
-// TODO: Add update_screenshot subcommand
 export default new Command({
   name: 'badactor',
   description: 'Report a bad actor to the TMC admins or remove a report',
@@ -76,7 +76,7 @@ export default new Command({
       options: [
         {
           name: 'id',
-          description: 'The ID of bad actor entry to deactivate',
+          description: 'The Database ID of bad actor entry to deactivate',
           type: ApplicationCommandOptionType.Integer,
           required: true,
         },
@@ -95,13 +95,13 @@ export default new Command({
       options: [
         {
           name: 'id',
-          description: 'The ID of bad actor entry to reactivate',
+          description: 'The Database ID of bad actor entry to reactivate',
           type: ApplicationCommandOptionType.Integer,
           required: true,
         },
         {
           name: 'reason',
-          description: 'The reason for reactivate the report',
+          description: 'The reason for reactivating the report',
           type: ApplicationCommandOptionType.String,
           required: true,
         },
@@ -114,7 +114,7 @@ export default new Command({
       options: [
         {
           name: 'id',
-          description: 'The ID of the bad actor entry to add the screenshot to',
+          description: 'The Database ID of the bad actor entry to add the screenshot to',
           type: ApplicationCommandOptionType.Integer,
           required: true,
         },
@@ -127,13 +127,33 @@ export default new Command({
       ],
     },
     {
+      name: 'replace_screenshot',
+      description:
+        'Update the screenshot of an existing report. This will replace and remove the old one.',
+      type: ApplicationCommandOptionType.Subcommand,
+      options: [
+        {
+          name: 'id',
+          description: 'The Database ID of the bad actor entry to update the screenshot of',
+          type: ApplicationCommandOptionType.Integer,
+          required: true,
+        },
+        {
+          name: 'screenshot',
+          description: 'The new screenshot to add to the report',
+          type: ApplicationCommandOptionType.Attachment,
+          required: true,
+        },
+      ],
+    },
+    {
       name: 'update_explanation',
       description: 'Add an explanation to an existing report or update the existing one',
       type: ApplicationCommandOptionType.Subcommand,
       options: [
         {
           name: 'id',
-          description: 'The ID of the bad actor entry to update the explanation ofs',
+          description: 'The Database ID of the bad actor entry to update the explanation ofs',
           type: ApplicationCommandOptionType.Integer,
           required: true,
         },
@@ -171,12 +191,12 @@ export default new Command({
     },
     {
       name: 'display_by_id',
-      description: 'Display an entry by its ID',
+      description: 'Display an entry by its Database ID',
       type: ApplicationCommandOptionType.Subcommand,
       options: [
         {
           name: 'id',
-          description: 'The ID of the entry to display',
+          description: 'The Database ID of the entry to display',
           type: ApplicationCommandOptionType.Integer,
           required: true,
         },
@@ -555,6 +575,64 @@ export default new Command({
 
         Logger.info(
           `User ${interaction.user.globalName ?? interaction.user.username} added a screenshot to bad actor ${id} in ${interactionGuild.name}.`,
+        );
+
+        try {
+          const res = await getBadActorEmbeds([badActor], interaction.user, client);
+          const embeds = res.map(([embed]) => embed);
+          const attachments = res
+            .map(([, attachment]) => attachment)
+            .filter((a) => a !== null) as AttachmentBuilder[];
+
+          await interaction.editReply({ embeds, files: attachments });
+        } catch (e) {
+          await interaction.editReply('Failed to send the bad actor embed.');
+          Logger.error(`Failed to send the bad actor embed: ${e}`);
+        }
+      } catch (e) {
+        await interaction.editReply(`Failed to get the bad actor from the database.`);
+        Logger.error(`Failed to get the bad actor from the database: ${e}`);
+        return;
+      }
+    }
+
+    if (subcommand === 'replace_screenshot') {
+      const id = args.getInteger('id', true);
+      const attachment = args.getAttachment('screenshot', true);
+
+      try {
+        const badActor = await BadActorModelController.getBadActorById(id);
+
+        if (!badActor) {
+          await interaction.editReply('This entry does not exist.');
+          return;
+        }
+
+        if (!badActor.is_active) {
+          await interaction.editReply(
+            'This entry is deactivated. You cannot add a screenshot to it.',
+          );
+          return;
+        }
+
+        if (!badActor.screenshot_proof) {
+          await interaction.editReply(
+            'This entry does not have a screenshot yet. Please use the /badactor add_screenshot instead.',
+          );
+          return;
+        }
+
+        const screenshot = new Screenshot(attachment, interaction.user.id);
+        await screenshot.replaceFileInFileSystem(badActor.screenshot_proof);
+
+        await BadActorModelController.updateScreenshotProof(
+          id,
+          screenshot.path,
+          interaction.user.id,
+        );
+
+        Logger.info(
+          `User ${interaction.user.globalName ?? interaction.user.username} replaced the screenshot for bad actor ${id} in ${interactionGuild.name}.`,
         );
 
         try {
