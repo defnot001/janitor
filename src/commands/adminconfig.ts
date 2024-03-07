@@ -19,6 +19,7 @@ import {
 import { UserModelController } from '../database/model/UserModelController';
 import { InfoEmbedBuilder } from '../util/builders';
 import { BadActorModelController } from '../database/model/BadActorModelController';
+import { Screenshot } from '../util/attachments';
 
 export default new Command({
   name: 'adminconfig',
@@ -184,6 +185,10 @@ export default new Command({
         }
 
         await BadActorModelController.deleteBadActor(entryID);
+
+        if (dbEntry.screenshot_proof) {
+          await Screenshot.deleteFromFileSystem(dbEntry.screenshot_proof);
+        }
 
         try {
           const user = await client.users.fetch(dbEntry.user_id);
