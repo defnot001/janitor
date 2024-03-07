@@ -20,7 +20,7 @@ import { Screenshot } from '../util/attachments';
 import { getButtonCollector, getConfirmCancelRow } from '../util/discord';
 import path from 'path';
 
-type Subcommand =
+export type BadActorSubcommand =
   | 'report'
   | 'deactivate'
   | 'reactivate'
@@ -30,6 +30,7 @@ type Subcommand =
   | 'add_screenshot'
   | 'update_explanation';
 
+// TODO: Add update_screenshot subcommand
 export default new Command({
   name: 'badactor',
   description: 'Report a bad actor to the TMC admins or remove a report',
@@ -198,7 +199,7 @@ export default new Command({
     const dbUser = await isUserAllowed(interactionGuild, interaction);
     if (!dbUser) return;
 
-    const subcommand = args.getSubcommand() as Subcommand;
+    const subcommand = args.getSubcommand() as BadActorSubcommand;
 
     if (subcommand === 'display_latest') {
       const amount = args.getInteger('amount', false) ?? 5;
