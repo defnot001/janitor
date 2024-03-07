@@ -11,6 +11,8 @@ export const config = {
   databaseURL: env['DATABASE_URL'],
   superuser: env['SUPERUSER'],
   adminServerID: env['ADMIN_SERVER_ID'],
+  adminServerLogChannel: env['ADMIN_SERVER_LOG_CHANNEL'],
+  adminServerErrorLogChannel: env['ADMIN_SERVER_ERROR_LOG_CHANNEL'],
 } as const;
 
 function isConfigFullySet(config: { [key: string]: any }): boolean {
