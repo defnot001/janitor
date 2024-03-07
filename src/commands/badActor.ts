@@ -11,7 +11,7 @@ import {
   userMention,
 } from 'discord.js';
 import { Command } from '../handler/classes/Command';
-import { config, projectPaths } from '../config';
+import { botConfig, projectPaths } from '../config';
 import { DbUser, UserModelController } from '../database/model/UserModelController';
 import Logger from '../util/logger';
 import { DbBadActor, BadActorModelController } from '../database/model/BadActorModelController';
@@ -715,7 +715,7 @@ async function isUserAllowed(
       return null;
     }
 
-    if (!dbUser.servers.includes(guild.id) || guild.id === config.adminServerID) {
+    if (!dbUser.servers.includes(guild.id) || guild.id === botConfig.adminServerID) {
       await interaction.editReply('You are not allowed to use this command here.');
       Logger.warn(
         `${interaction.user.globalName ?? interaction.user.username} attempted to use /badactor in ${guild.name} but the user is not allowed to use it there.`,

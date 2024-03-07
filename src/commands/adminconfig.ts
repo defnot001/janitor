@@ -10,7 +10,7 @@ import {
 } from 'discord.js';
 import { Command } from '../handler/classes/Command';
 import { AdminModelController } from '../database/model/AdminModelController';
-import { config } from '../config';
+import { botConfig } from '../config';
 import Logger from '../util/logger';
 import {
   ServerConfigModelController,
@@ -62,7 +62,7 @@ export default new Command({
       return;
     }
 
-    if (!interaction.guild || interaction.guild.id !== config.adminServerID) {
+    if (!interaction.guild || interaction.guild.id !== botConfig.adminServerID) {
       await interaction.editReply('This command can only be used in the admin server.');
       Logger.warn(
         `${interaction.user.username} attempted to use /adminconfig outside of the admin server.`,

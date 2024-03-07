@@ -2,21 +2,19 @@ import {
   ApplicationCommandOptionType,
   CommandInteraction,
   Guild,
-  Interaction,
   User,
   inlineCode,
   time,
 } from 'discord.js';
 import { Command } from '../handler/classes/Command';
 import { DbUser, UserModelController } from '../database/model/UserModelController';
-import { config } from '../config';
+import { botConfig } from '../config';
 import { InfoEmbedBuilder } from '../util/builders';
 import {
   DbServerConfig,
   ServerConfigModelController,
   displayActionLevel,
 } from '../database/model/ServerConfigModelController';
-import { getTextChannelByID } from './adminconfig';
 import Logger from '../util/logger';
 
 export default new Command({
@@ -102,7 +100,7 @@ export default new Command({
 
     const subcommand = args.getSubcommand() as 'display' | 'update';
 
-    if (interactionGuild.id === config.adminServerID) {
+    if (interactionGuild.id === botConfig.adminServerID) {
       await interaction.editReply('This command is not available in the admin server.');
       return;
     }
@@ -185,7 +183,7 @@ async function isUserAllowed(
       return null;
     }
 
-    if (!dbUser.servers.includes(guild.id) || guild.id === config.adminServerID) {
+    if (!dbUser.servers.includes(guild.id) || guild.id === botConfig.adminServerID) {
       await interaction.editReply('You are not allowed to use this command here.');
       Logger.warn(
         `${interaction.user.globalName ?? interaction.user.username} attempted to use /config in ${guild.name} but the user is not allowed to use it there.`,

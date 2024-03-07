@@ -1,6 +1,6 @@
 import { Client, Snowflake } from 'discord.js';
 import { pgClient } from '../..';
-import { config } from '../../config';
+import { botConfig } from '../../config';
 
 export type DbUser = {
   id: Snowflake;

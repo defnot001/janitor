@@ -1,6 +1,6 @@
 import { ApplicationCommandOptionType, escapeMarkdown, inlineCode } from 'discord.js';
 import { Command } from '../handler/classes/Command';
-import { config } from '../config';
+import { botConfig } from '../config';
 import { AdminModelController } from '../database/model/AdminModelController';
 import { InfoEmbedBuilder } from '../util/builders';
 import Logger from '../util/logger';
@@ -44,13 +44,13 @@ export default new Command({
   execute: async ({ interaction, args, client }) => {
     await interaction.deferReply();
 
-    if (interaction.user.id !== config.superuser) {
+    if (interaction.user.id !== botConfig.superuser) {
       await interaction.editReply('You do not have permission to use this command.');
       Logger.warn(`${interaction.user.username} attempted to use /admin without permission.`);
       return;
     }
 
-    if (!interaction.guild || interaction.guild.id !== config.adminServerID) {
+    if (!interaction.guild || interaction.guild.id !== botConfig.adminServerID) {
       await interaction.editReply('This command can only be used in the admin server.');
       Logger.warn(
         `${interaction.user.username} attempted to use /admin outside of the admin server.`,

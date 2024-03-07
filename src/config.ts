@@ -5,7 +5,7 @@ import Logger from './util/logger';
 process.env.NODE_ENV = process.env.NODE_ENV || 'development';
 Logger.info(`Loaded ${env['NODE_ENV']} config.`);
 
-export const config = {
+export const botConfig = {
   botToken: env['DISCORD_BOT_TOKEN'],
   clientID: env['DISCORD_CLIENT_ID'],
   databaseURL: env['DATABASE_URL'],
@@ -34,11 +34,11 @@ function isConfigFullySet(config: { [key: string]: any }): boolean {
   return true;
 }
 
-if (!isConfigFullySet(config)) {
+if (!isConfigFullySet(botConfig)) {
   throw new Error('Config not fully set');
 }
 
-export type Config = typeof config;
+export type Config = typeof botConfig;
 
 export const projectPaths = {
   sources: path.join(path.dirname(import.meta.dir), 'src'),

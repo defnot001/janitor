@@ -9,7 +9,7 @@ import {
   time,
 } from 'discord.js';
 import { Command } from '../handler/classes/Command';
-import { config } from '../config';
+import { botConfig } from '../config';
 import Logger from '../util/logger';
 import { AdminModelController } from '../database/model/AdminModelController';
 import { UserModelController } from '../database/model/UserModelController';
@@ -123,7 +123,7 @@ export default new Command({
       return;
     }
 
-    if (!interaction.guild || interaction.guild.id !== config.adminServerID) {
+    if (!interaction.guild || interaction.guild.id !== botConfig.adminServerID) {
       await interaction.editReply('This command can only be used in the admin server.');
       Logger.warn(
         `User ${interaction.user.id} tried to use /user in ${interaction.guild?.name} but it can only be used in the admin server.`,
