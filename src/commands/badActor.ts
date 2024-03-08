@@ -19,6 +19,7 @@ import { InfoEmbedBuilder } from '../util/builders';
 import { Screenshot } from '../util/attachments';
 import { getButtonCollector, getConfirmCancelRow } from '../util/discord';
 import path from 'path';
+import { Broadcaster } from '../util/broadcast';
 
 export type BadActorSubcommand =
   | 'report'
@@ -416,6 +417,12 @@ export default new Command({
               `User ${interaction.user.globalName ?? interaction.user.username} reported user ${badActorUser.globalName ?? badActorUser.username} as a bad actor in ${interactionGuild.name}.`,
             );
 
+            await Broadcaster.broadcast({
+              client,
+              broadcastType: subcommand,
+              dbBadActor,
+            });
+
             try {
               const res = await getBadActorEmbeds([dbBadActor], interaction.user, client);
               const embeds = res.map(([embed]) => embed);
@@ -471,6 +478,12 @@ export default new Command({
           `User ${interaction.user.globalName ?? interaction.user.username} deactivated bad actor ${id} in ${interactionGuild.name}.`,
         );
 
+        await Broadcaster.broadcast({
+          client,
+          broadcastType: subcommand,
+          dbBadActor: badActor,
+        });
+
         try {
           const res = await getBadActorEmbeds([badActor], interaction.user, client);
           const embeds = res.map(([embed]) => embed);
@@ -518,6 +531,12 @@ export default new Command({
         Logger.info(
           `User ${interaction.user.globalName ?? interaction.user.username} reactivated bad actor ${id} in ${interactionGuild.name}.`,
         );
+
+        await Broadcaster.broadcast({
+          client,
+          broadcastType: subcommand,
+          dbBadActor: badActor,
+        });
 
         try {
           const res = await getBadActorEmbeds([badActor], interaction.user, client);
@@ -577,6 +596,12 @@ export default new Command({
           `User ${interaction.user.globalName ?? interaction.user.username} added a screenshot to bad actor ${id} in ${interactionGuild.name}.`,
         );
 
+        await Broadcaster.broadcast({
+          client,
+          broadcastType: subcommand,
+          dbBadActor: badActor,
+        });
+
         try {
           const res = await getBadActorEmbeds([badActor], interaction.user, client);
           const embeds = res.map(([embed]) => embed);
@@ -635,6 +660,12 @@ export default new Command({
           `User ${interaction.user.globalName ?? interaction.user.username} replaced the screenshot for bad actor ${id} in ${interactionGuild.name}.`,
         );
 
+        await Broadcaster.broadcast({
+          client,
+          broadcastType: subcommand,
+          dbBadActor: badActor,
+        });
+
         try {
           const res = await getBadActorEmbeds([badActor], interaction.user, client);
           const embeds = res.map(([embed]) => embed);
@@ -678,6 +709,12 @@ export default new Command({
         Logger.info(
           `User ${interaction.user.globalName ?? interaction.user.username} added an explanation to bad actor ${id} in ${interactionGuild.name}.`,
         );
+
+        await Broadcaster.broadcast({
+          client,
+          broadcastType: subcommand,
+          dbBadActor: badActor,
+        });
 
         try {
           const res = await getBadActorEmbeds([badActor], interaction.user, client);
