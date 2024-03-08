@@ -1,3 +1,9 @@
+import { EmbedBuilder } from '@discordjs/builders';
+import { errorLog } from '../events/ready';
+import { client } from '..';
+import { botConfig } from '../config';
+import { userMention } from 'discord.js';
+
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 const colors = {
@@ -17,12 +23,32 @@ export default abstract class Logger {
     this.log(message, 'info');
   }
 
-  public static warn(message: string): void {
+  public static async warn(message: string): Promise<void> {
     this.log(message, 'warn');
+    const embed = this.buildLogEmbed(message, 'warn');
+    await errorLog?.send({ embeds: [embed] });
   }
 
-  public static error(message: string): void {
+  public static async error(message: string): Promise<void> {
     this.log(message, 'error');
+    const embed = this.buildLogEmbed(message, 'error');
+    await errorLog?.send({ content: userMention(botConfig.superuser), embeds: [embed] });
+  }
+
+  private static buildLogEmbed(message: string, level: 'warn' | 'error') {
+    const errorLogEmbed = new EmbedBuilder({
+      description: message,
+      color: level === 'warn' ? 16_776_960 : 16_711_680,
+      author: {
+        name: 'Janitor',
+        icon_url: client.user?.displayAvatarURL(),
+      },
+      footer: {
+        text: 'Error Log',
+      },
+    });
+
+    return errorLogEmbed.setTimestamp(Date.now());
   }
 
   private static log(message: string, logLevel: LogLevel): void {
