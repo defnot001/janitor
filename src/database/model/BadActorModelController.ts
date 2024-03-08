@@ -5,7 +5,7 @@ export type DbBadActor = {
   id: number;
   user_id: Snowflake;
   is_active: boolean;
-  actor_type: 'spam' | 'impersonation' | 'bigot';
+  actor_type: 'spam' | 'impersonation' | 'bigotry';
   screenshot_proof: string | null;
   explanation: string | null;
   created_at: Date;
@@ -17,7 +17,7 @@ export type DbBadActor = {
 export abstract class BadActorModelController {
   public static async createBadActor(options: {
     user_id: Snowflake;
-    actor_type: 'spam' | 'impersonation' | 'bigot';
+    actor_type: 'spam' | 'impersonation' | 'bigotry';
     screenshot_proof?: string | null;
     explanation?: string | null;
     originally_created_in: Snowflake;
