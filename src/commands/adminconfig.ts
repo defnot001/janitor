@@ -234,7 +234,7 @@ export async function getTextChannelByID(
       return channel as TextChannel;
     }
 
-    await Logger.warn(`Logchannel with ID ${id} is not a valid text channel.`);
+    await Logger.warn(`Channel with ID ${id} is not a valid text channel.`);
     return null;
   } catch (e) {
     await Logger.error(`An error occurred while fetching channel with ID ${id}: ${e}`);
