@@ -58,13 +58,15 @@ export default new Command({
 
     if (!(await AdminModelController.isAdmin(interaction.user.id))) {
       await interaction.editReply('You do not have permission to use this command.');
-      Logger.warn(`${interaction.user.username} attempted to use /adminconfig without permission.`);
+      await Logger.warn(
+        `${interaction.user.username} attempted to use /adminconfig without permission.`,
+      );
       return;
     }
 
     if (!interaction.guild || interaction.guild.id !== botConfig.adminServerID) {
       await interaction.editReply('This command can only be used in the admin server.');
-      Logger.warn(
+      await Logger.warn(
         `${interaction.user.username} attempted to use /adminconfig outside of the admin server.`,
       );
       return;
@@ -168,7 +170,7 @@ export default new Command({
         await interaction.editReply({ embeds });
       } catch (e) {
         await interaction.editReply('An error occurred while fetching the server configs.');
-        Logger.error(`An error occurred while fetching the server configs: ${e}`);
+        await Logger.error(`An error occurred while fetching the server configs: ${e}`);
         return;
       }
     }
@@ -202,7 +204,9 @@ export default new Command({
             `${interaction.user.globalName ?? interaction.user.username} deleted user with ID ${dbEntry.user_id} from the bad actors list.`,
           );
         } catch (e) {
-          Logger.error(`An error occurred while fetching user with ID ${dbEntry.user_id}: ${e}`);
+          await Logger.error(
+            `An error occurred while fetching user with ID ${dbEntry.user_id}: ${e}`,
+          );
           Logger.info(
             `${interaction.user.globalName ?? interaction.user.username} deleted user with ID ${dbEntry.user_id} from the bad actors list.`,
           );
@@ -212,7 +216,7 @@ export default new Command({
         }
       } catch (e) {
         await interaction.editReply('An error occurred while deleting the user from the database.');
-        Logger.error(`An error occurred while deleting the user from the database: ${e}`);
+        await Logger.error(`An error occurred while deleting the user from the database: ${e}`);
         return;
       }
     }
@@ -230,10 +234,10 @@ export async function getTextChannelByID(
       return channel as TextChannel;
     }
 
-    Logger.warn(`Logchannel with ID ${id} is not a valid text channel.`);
+    await Logger.warn(`Logchannel with ID ${id} is not a valid text channel.`);
     return null;
   } catch (e) {
-    Logger.error(`An error occurred while fetching channel with ID ${id}: ${e}`);
+    await Logger.error(`An error occurred while fetching channel with ID ${id}: ${e}`);
     return null;
   }
 }

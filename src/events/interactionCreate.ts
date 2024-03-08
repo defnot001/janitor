@@ -18,7 +18,7 @@ export default new Event('interactionCreate', async (interaction) => {
   const command = client.commands.get(commandName);
 
   if (!command) {
-    Logger.error(
+    await Logger.error(
       `${username} used /${commandName} ${channelNameAddon} but the command does not exist.`,
     );
 
@@ -41,7 +41,7 @@ export default new Event('interactionCreate', async (interaction) => {
       interaction: interaction as ExtendedInteraction,
     });
   } catch (e) {
-    Logger.error(`An error occurred while executing ${commandName}: ${e}`);
+    await Logger.error(`An error occurred while executing ${commandName}: ${e}`);
 
     await interaction.reply({
       content: `There was an error trying to execute the interaction: ${interaction.commandName}!`,

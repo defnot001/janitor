@@ -112,20 +112,20 @@ export default new Command({
     try {
       if (!(await AdminModelController.isAdmin(interaction.user.id))) {
         await interaction.editReply('You do not have permission to use this command.');
-        Logger.warn(
+        await Logger.warn(
           `${interaction.user.globalName ?? interaction.user.username} attempted to use /user without permission.`,
         );
         return;
       }
     } catch (e) {
       await interaction.editReply("An error occurred while trying to get the bot's admins.");
-      Logger.error(`Error getting admins from the database: ${e}`);
+      await Logger.error(`Error getting admins from the database: ${e}`);
       return;
     }
 
     if (!interaction.guild || interaction.guild.id !== botConfig.adminServerID) {
       await interaction.editReply('This command can only be used in the admin server.');
-      Logger.warn(
+      await Logger.warn(
         `User ${interaction.user.id} tried to use /user in ${interaction.guild?.name} but it can only be used in the admin server.`,
       );
       return;
@@ -167,7 +167,7 @@ export default new Command({
 
         await interaction.editReply({ embeds: [listEmbed] });
       } catch (e) {
-        Logger.error(`Error getting all users: ${e}`);
+        await Logger.error(`Error getting all users: ${e}`);
         await interaction.editReply('An error occurred while getting all users.');
         return;
       }
@@ -182,7 +182,7 @@ export default new Command({
       try {
         server = await client.guilds.fetch(serverID);
       } catch (e) {
-        Logger.error(`Error fetching server: ${e}`);
+        await Logger.error(`Error fetching server: ${e}`);
         await interaction.editReply('An error occurred while fetching the server.');
         return;
       }
@@ -214,7 +214,7 @@ export default new Command({
 
         await interaction.editReply({ embeds: [listEmbed] });
       } catch (e) {
-        Logger.error(`Error getting users by server: ${e}`);
+        await Logger.error(`Error getting users by server: ${e}`);
         await interaction.editReply('An error occurred while getting users by server.');
         return;
       }
@@ -274,7 +274,7 @@ export default new Command({
 
         await interaction.editReply({ embeds: [infoEmbed] });
       } catch (e) {
-        Logger.error(`Error getting user information: ${e}`);
+        await Logger.error(`Error getting user information: ${e}`);
         await interaction.editReply('An error occurred while getting user information.');
         return;
       }
@@ -326,7 +326,7 @@ export default new Command({
           }
         }
       } catch (e) {
-        Logger.error(`Error adding user to whitelist: ${e}`);
+        await Logger.error(`Error adding user to whitelist: ${e}`);
         await interaction.editReply('An error occurred while adding the user to the whitelist.');
         return;
       }
@@ -363,7 +363,7 @@ export default new Command({
           `Updated User ${escapeMarkdown(user.globalName ?? user.username)} with ID ${inlineCode(user.id)} on whitelist.\nThey are allowed to use the bot in the following servers: ${newServerNames.join(', ')}`,
         );
       } catch (e) {
-        Logger.error(`Error updating user on whitelist: ${e}`);
+        await Logger.error(`Error updating user on whitelist: ${e}`);
         await interaction.editReply('An error occurred while updating the user on the whitelist.');
         return;
       }
@@ -371,7 +371,7 @@ export default new Command({
       try {
         await handleServerConfigUpdates(user, newServerIDs, client);
       } catch (e) {
-        Logger.error(`Error updating server configs: ${e}`);
+        await Logger.error(`Error updating server configs: ${e}`);
         await interaction.followUp('An error occurred while updating server configs.');
         return;
       }
@@ -418,7 +418,7 @@ export default new Command({
           }
         }
       } catch (e) {
-        Logger.error(`Error removing user from whitelist: ${e}`);
+        await Logger.error(`Error removing user from whitelist: ${e}`);
         await interaction.editReply(
           'An error occurred while removing the user from the whitelist.',
         );
@@ -437,8 +437,8 @@ async function fetchGuilds(
   const guildMap = new Map<Snowflake, Guild | null>();
 
   for await (const id of ids) {
-    const guild = await client.guilds.fetch(id).catch(() => {
-      Logger.warn(`Failed to fetch guild ${id}`);
+    const guild = await client.guilds.fetch(id).catch(async () => {
+      await Logger.warn(`Failed to fetch guild ${id}`);
       return null;
     });
     guildMap.set(id, guild);

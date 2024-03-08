@@ -52,7 +52,7 @@ export abstract class Broadcaster {
         client,
       });
     } catch (e) {
-      Logger.error(`Failed to broadcast to admin server: ${e}`);
+      await Logger.error(`Failed to broadcast to admin server: ${e}`);
     }
 
     try {
@@ -64,7 +64,7 @@ export abstract class Broadcaster {
         listenersMap,
       });
     } catch (e) {
-      Logger.error(`Failed to broadcast to servers: ${e}`);
+      await Logger.error(`Failed to broadcast to servers: ${e}`);
     }
   }
 
@@ -77,7 +77,7 @@ export abstract class Broadcaster {
     const logChannel = await getTextChannelByID(options.client, botConfig.adminServerLogChannel);
 
     if (!logChannel) {
-      Logger.error(
+      await Logger.error(
         `Failed to get log channel ${botConfig.adminServerLogChannel} for admin server. Skipping broadcast to admin server.`,
       );
       return;
@@ -108,7 +108,9 @@ export abstract class Broadcaster {
       const serverConfig = options.listenersMap.get(guildID);
 
       if (!serverConfig) {
-        Logger.error(`Failed to get server config for server ${guildID}. Skipping their server.`);
+        await Logger.error(
+          `Failed to get server config for server ${guildID}. Skipping their server.`,
+        );
         continue;
       }
 
@@ -141,7 +143,7 @@ export abstract class Broadcaster {
 
     for await (const config of serverConfigs) {
       if (!config.log_channel) {
-        Logger.warn(
+        await Logger.warn(
           `No logchannel set for server ${config.server_id}. Skipping their for broadcasting.`,
         );
         continue;
@@ -154,11 +156,11 @@ export abstract class Broadcaster {
       } catch (e) {
         try {
           const guild = await client.guilds.fetch(config.server_id);
-          Logger.error(
+          await Logger.error(
             `Failed to get users for server ${guild.name} (${config.server_id}): ${e}. Skipping their server.`,
           );
         } catch (e) {
-          Logger.error(
+          await Logger.error(
             `Failed to get users for server ${config.server_id}: ${e}. Skipping their server.`,
           );
         }
@@ -178,8 +180,8 @@ export abstract class Broadcaster {
     const validLogChannels: { guildID: Snowflake; logChannel: TextChannel }[] = [];
 
     for (const { guildID, channelID } of serverChannelIDs) {
-      const guild = await client.guilds.fetch(guildID).catch((e) => {
-        Logger.error(`Failed to fetch server ${guildID}: ${e}`);
+      const guild = await client.guilds.fetch(guildID).catch(async (e) => {
+        await Logger.error(`Failed to fetch server ${guildID}: ${e}`);
       });
 
       const displayGuild = guild ? guild.name : guildID;
@@ -190,12 +192,12 @@ export abstract class Broadcaster {
         if (channel && channel.isTextBased() && channel instanceof TextChannel) {
           validLogChannels.push({ guildID, logChannel: channel });
         } else {
-          Logger.warn(
+          await Logger.warn(
             `Logchannel ${channelID} for server ${displayGuild} is not a text channel. Skipping this channel.`,
           );
         }
       } catch (e) {
-        Logger.error(
+        await Logger.error(
           `Failed to fetch channel ${channelID} for server ${displayGuild}: ${e}. Skipping this channel.`,
         );
         continue;
@@ -210,17 +212,21 @@ export abstract class Broadcaster {
     badActor: DbBadActor,
     broadcastType: BroadcastType,
   ) {
-    const badActorUser = await client.users.fetch(badActor.user_id).catch((e) => {
-      Logger.error(`Failed to fetch user ${badActor.user_id} to create broadcast embed: ${e}`);
-      return null;
-    });
-
-    const initialGuild = await client.guilds.fetch(badActor.originally_created_in).catch((e) => {
-      Logger.error(
-        `Failed to fetch guild ${badActor.originally_created_in} to create broadcast embed: ${e}`,
+    const badActorUser = await client.users.fetch(badActor.user_id).catch(async (e) => {
+      await Logger.error(
+        `Failed to fetch user ${badActor.user_id} to create broadcast embed: ${e}`,
       );
       return null;
     });
+
+    const initialGuild = await client.guilds
+      .fetch(badActor.originally_created_in)
+      .catch(async (e) => {
+        await Logger.error(
+          `Failed to fetch guild ${badActor.originally_created_in} to create broadcast embed: ${e}`,
+        );
+        return null;
+      });
 
     const embedTitle = `Bad Actor ${badActorUser ? badActorUser.globalName ?? badActorUser.username : badActor.user_id}`;
     const initialGuildDisplay = initialGuild
@@ -280,7 +286,7 @@ export abstract class Broadcaster {
           path.join(projectPaths.sources, '..', 'screenshots', badActor.screenshot_proof),
         );
       } catch (e) {
-        Logger.error(`Failed to create attachment for bad actor ${badActor.id}: ${e}`);
+        await Logger.error(`Failed to create attachment for bad actor ${badActor.id}: ${e}`);
       }
     }
 

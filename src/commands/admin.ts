@@ -46,13 +46,13 @@ export default new Command({
 
     if (interaction.user.id !== botConfig.superuser) {
       await interaction.editReply('You do not have permission to use this command.');
-      Logger.warn(`${interaction.user.username} attempted to use /admin without permission.`);
+      await Logger.warn(`${interaction.user.username} attempted to use /admin without permission.`);
       return;
     }
 
     if (!interaction.guild || interaction.guild.id !== botConfig.adminServerID) {
       await interaction.editReply('This command can only be used in the admin server.');
-      Logger.warn(
+      await Logger.warn(
         `${interaction.user.username} attempted to use /admin outside of the admin server.`,
       );
       return;
@@ -76,7 +76,7 @@ export default new Command({
 
         await interaction.editReply({ embeds: [adminEmbed] });
       } catch (e) {
-        Logger.error(`Error fetching admins: ${e}`);
+        await Logger.error(`Error fetching admins: ${e}`);
         await interaction.editReply('Error fetching admins.');
       }
     }
@@ -94,7 +94,7 @@ export default new Command({
           `Added ${escapeMarkdown(user.globalName ?? user.username)} as an admin.`,
         );
       } catch (e) {
-        Logger.error(`Error adding admin: ${e}`);
+        await Logger.error(`Error adding admin: ${e}`);
         await interaction.editReply('Error adding admin.');
       }
     }
@@ -112,7 +112,7 @@ export default new Command({
           `Removed ${escapeMarkdown(user.globalName ?? user.username)} as an admin.`,
         );
       } catch (e) {
-        Logger.error(`Error removing admin: ${e}`);
+        await Logger.error(`Error removing admin: ${e}`);
         await interaction.editReply('Error removing admin.');
       }
     }
