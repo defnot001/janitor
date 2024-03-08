@@ -316,7 +316,7 @@ export default new Command({
 
     if (subcommand === 'report') {
       const badActorUser = args.getUser('user', true);
-      const type = args.getString('type', true) as 'spam' | 'impersonation' | 'bigot';
+      const type = args.getString('type', true) as 'spam' | 'impersonation' | 'bigotry';
       const attachment = args.getAttachment('screenshot', false);
       const explanation = args.getString('explanation', false);
 
