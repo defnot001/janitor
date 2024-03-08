@@ -28,16 +28,19 @@ export type DbServerConfig = {
   server_id: Snowflake;
   log_channel: Snowflake | null;
   ping_users: boolean;
-  action_level: ActionLevel;
+  spam_action_level: ActionLevel;
+  impersonation_action_level: ActionLevel;
+  bigotry_action_level: ActionLevel;
   timeout_users_with_role: boolean;
   ignored_roles: Snowflake[];
   created_at: Date;
   updated_at: Date;
 };
-
 type CreateServerConfig = {
   server_id: Snowflake;
-  action_level?: ActionLevel | null;
+  spam_action_level?: ActionLevel | null;
+  impersonation_action_level?: ActionLevel | null;
+  bigotry_action_level?: ActionLevel | null;
   log_channel?: Snowflake | null;
   ping_users?: boolean | null;
   timeout_users_with_role?: boolean | null;
@@ -45,24 +48,6 @@ type CreateServerConfig = {
 };
 
 export abstract class ServerConfigModelController {
-  public static async createServerConfig(
-    createServerConfig: CreateServerConfig,
-  ): Promise<DbServerConfig> {
-    const serverConfig = await pgClient.query<DbServerConfig>(
-      'INSERT INTO server_configs (server_id, log_channel, ping_users, action_level, timeout_users_with_role, ignored_roles) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [
-        createServerConfig.server_id,
-        createServerConfig.log_channel || null,
-        createServerConfig.ping_users || false,
-        createServerConfig.action_level || 0,
-        createServerConfig.timeout_users_with_role || false,
-        createServerConfig.ignored_roles || [],
-      ],
-    );
-
-    return serverConfig.rows[0];
-  }
-
   public static async createServerConfigIfNotExists(
     server_id: Snowflake,
   ): Promise<DbServerConfig | null> {
@@ -109,7 +94,14 @@ export abstract class ServerConfigModelController {
       throw new Error('Server config does not exist');
     }
 
-    const actionLevel = updateServerConfig.action_level || currentServerConfig.action_level;
+    const spam_action_level =
+      updateServerConfig.spam_action_level || currentServerConfig.spam_action_level;
+    const impersonation_action_level =
+      updateServerConfig.impersonation_action_level ||
+      currentServerConfig.impersonation_action_level;
+    const bigotry_action_level =
+      updateServerConfig.bigotry_action_level || currentServerConfig.bigotry_action_level;
+
     const logChannel = updateServerConfig.log_channel || currentServerConfig.log_channel;
     const pingUsers = updateServerConfig.ping_users || currentServerConfig.ping_users;
     const timeoutUsersWithRole =
@@ -117,11 +109,13 @@ export abstract class ServerConfigModelController {
     const ignoredRoles = updateServerConfig.ignored_roles || currentServerConfig.ignored_roles;
 
     const serverConfig = await pgClient.query<DbServerConfig>(
-      'UPDATE server_configs SET log_channel = $1, ping_users = $2, action_level = $3, timeout_users_with_role = $4, ignored_roles = $5, updated_at = CURRENT_TIMESTAMP WHERE server_id = $6 RETURNING *',
+      'UPDATE server_configs SET spam_action_level = $1, impersonation_action_level = $2, bigotry_action_level = $3, log_channel = $4, ping_users = $5, timeout_users_with_role = $6, ignored_roles = $7, updated_at = NOW() WHERE server_id = $8 RETURNING *',
       [
+        spam_action_level,
+        impersonation_action_level,
+        bigotry_action_level,
         logChannel,
         pingUsers,
-        actionLevel,
         timeoutUsersWithRole,
         ignoredRoles,
         updateServerConfig.server_id,
