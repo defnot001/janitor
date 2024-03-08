@@ -4,13 +4,16 @@ import {
   EmbedData,
   Snowflake,
   TextChannel,
+  escapeMarkdown,
   inlineCode,
   time,
   userMention,
 } from 'discord.js';
 import {
+  ActionLevel,
   DbServerConfig,
   ServerConfigModelController,
+  displayActionLevel,
 } from '../database/model/ServerConfigModelController';
 import { UserModelController } from '../database/model/UserModelController';
 import Logger from './logger';
@@ -25,6 +28,8 @@ export type BroadcastType = Exclude<
   BadActorSubcommand,
   'display_latest' | 'display_by_user' | 'display_by_id'
 >;
+
+type ModerationAction = 'none' | 'timeout' | 'kick' | 'softban' | 'ban';
 
 export abstract class Broadcaster {
   public static async broadcast(options: {
@@ -65,6 +70,181 @@ export abstract class Broadcaster {
       });
     } catch (e) {
       await Logger.error(`Failed to broadcast to servers: ${e}`);
+    }
+
+    try {
+      await this.takeModerationAction({
+        client,
+        dbBadActor,
+        broadcastType,
+        validLogChannels,
+        listenersMap,
+      });
+    } catch (e) {
+      await Logger.error(`Failed to take moderation action: ${e}`);
+    }
+  }
+
+  private static async takeModerationAction(options: {
+    client: Client;
+    dbBadActor: DbBadActor;
+    broadcastType: BroadcastType;
+    validLogChannels: { guildID: Snowflake; logChannel: TextChannel }[];
+    listenersMap: Map<Snowflake, ServerConfig>;
+  }) {
+    const { client, dbBadActor, broadcastType, validLogChannels } = options;
+
+    const badActorUser = await client.users.fetch(dbBadActor.user_id).catch(async (e) => {
+      await Logger.error(
+        `Failed to fetch user ${dbBadActor.user_id} to take moderation action: ${e}`,
+      );
+      return null;
+    });
+
+    if (!badActorUser) {
+      await Logger.error(
+        `Failed to fetch user ${dbBadActor.user_id} to take moderation action. Skipping all moderation action.`,
+      );
+
+      await Promise.all(
+        validLogChannels.map((c) =>
+          c.logChannel.send(
+            'Failed to fetch user to take moderation action. If your server has automatic moderation actions, they will not be performed.',
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    for (const { guildID, logChannel } of validLogChannels) {
+      const serverConfig = options.listenersMap.get(guildID);
+
+      const guild = await client.guilds.fetch(guildID).catch(async (e) => {
+        await Logger.error(`Failed to fetch server ${guildID}: ${e}`);
+        return null;
+      });
+
+      if (!guild) {
+        await Logger.error(`Failed to get guild ${guildID}. Skipping moderation action.`);
+        continue;
+      }
+
+      if (!serverConfig) {
+        await Logger.error(
+          `Failed to get server config for server ${guild.name} ${inlineCode(guild.id)}. Skipping their server.`,
+        );
+        continue;
+      }
+
+      const actionToPerform = await this.getActionToPerform(
+        dbBadActor,
+        broadcastType,
+        serverConfig,
+      );
+
+      if (actionToPerform === 'none') {
+        const actionLevel = this.getActionLevel(dbBadActor, serverConfig);
+
+        if (!actionLevel) {
+          await Logger.warn(
+            `Cannot find out which action to perform in ${guild.name} (${inlineCode(guild.id)}) for ${dbBadActor.actor_type}. Skipping moderation action.`,
+          );
+          await logChannel.send(
+            `Cannot find out which action to perform in your server with ${dbBadActor.actor_type}. Skipping moderation action.`,
+          );
+          continue;
+        }
+
+        if (broadcastType !== 'report') {
+          await logChannel.send(
+            'Actions are only performed on new reports. No action will be taken.',
+          );
+        } else {
+          await logChannel.send(
+            `Your server has no automatic actions set for ${dbBadActor.actor_type}. No actions will be taken.`,
+          );
+        }
+
+        continue;
+      }
+
+      if (actionToPerform === 'timeout') {
+        await logChannel.send(
+          `User ${escapeMarkdown(badActorUser.globalName ?? badActorUser.username)} (${inlineCode(badActorUser.id)}) will be timed out for 24 hours.`,
+        );
+      }
+
+      if (actionToPerform === 'kick') {
+        await logChannel.send(
+          `User ${escapeMarkdown(badActorUser.globalName ?? badActorUser.username)} (${inlineCode(badActorUser.id)}) will be kicked.`,
+        );
+      }
+
+      if (actionToPerform === 'softban') {
+        await logChannel.send(
+          `User ${escapeMarkdown(badActorUser.globalName ?? badActorUser.username)} (${inlineCode(badActorUser.id)}) will be softbanned.`,
+        );
+      }
+
+      if (actionToPerform === 'ban') {
+        await logChannel.send(
+          `User ${escapeMarkdown(badActorUser.globalName ?? badActorUser.username)} (${inlineCode(badActorUser.id)}) will be banned.`,
+        );
+      }
+    }
+  }
+
+  private static async getActionToPerform(
+    dbBadActor: DbBadActor,
+    broadcastType: BroadcastType,
+    serverConfig: ServerConfig,
+  ): Promise<ModerationAction> {
+    const actionLevel = this.getActionLevel(dbBadActor, serverConfig);
+
+    if (actionLevel === null) {
+      await Logger.warn(
+        `No action level set for bad actor ${dbBadActor.id}. Skipping moderation action.`,
+      );
+      return 'none';
+    }
+
+    if (broadcastType === 'report') {
+      switch (actionLevel) {
+        case ActionLevel.Notify:
+          return 'none';
+        case ActionLevel.Timeout:
+          return 'timeout';
+        case ActionLevel.Kick:
+          return 'kick';
+        case ActionLevel.SoftBan:
+          return 'softban';
+        case ActionLevel.Ban:
+          return 'ban';
+        default:
+          await Logger.warn(
+            `Unknown action level ${actionLevel} for bad actor ${dbBadActor.id}. Skipping moderation action.`,
+          );
+          return 'none';
+      }
+    }
+
+    return 'none';
+  }
+
+  private static getActionLevel(
+    dbBadActor: DbBadActor,
+    serverConfig: ServerConfig,
+  ): ActionLevel | null {
+    switch (dbBadActor.actor_type) {
+      case 'spam':
+        return serverConfig.spam_action_level;
+      case 'impersonation':
+        return serverConfig.impersonation_action_level;
+      case 'bigotry':
+        return serverConfig.bigotry_action_level;
+      default:
+        return null;
     }
   }
 
