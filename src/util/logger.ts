@@ -25,14 +25,23 @@ export default abstract class Logger {
 
   public static async warn(message: string): Promise<void> {
     this.log(message, 'warn');
-    const embed = this.buildLogEmbed(message, 'warn');
-    await errorLog?.send({ embeds: [embed] });
+    try {
+      const embed = this.buildLogEmbed(message, 'warn');
+      await errorLog?.send({ embeds: [embed] });
+    } catch (e) {
+      this.log(`Failed to send error log to errorLog channel: ${e}`, 'error');
+    }
   }
 
   public static async error(message: string): Promise<void> {
     this.log(message, 'error');
-    const embed = this.buildLogEmbed(message, 'error');
-    await errorLog?.send({ content: userMention(botConfig.superuser), embeds: [embed] });
+
+    try {
+      const embed = this.buildLogEmbed(message, 'error');
+      await errorLog?.send({ content: userMention(botConfig.superuser), embeds: [embed] });
+    } catch (e) {
+      this.log(`Failed to send error log to errorLog channel: ${e}`, 'error');
+    }
   }
 
   private static buildLogEmbed(message: string, level: 'warn' | 'error') {
