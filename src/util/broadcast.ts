@@ -1,9 +1,14 @@
 import {
   AttachmentBuilder,
   Client,
+  Collection,
   EmbedData,
+  Guild,
+  GuildMember,
+  Role,
   Snowflake,
   TextChannel,
+  User,
   escapeMarkdown,
   inlineCode,
   time,
@@ -13,7 +18,6 @@ import {
   ActionLevel,
   DbServerConfig,
   ServerConfigModelController,
-  displayActionLevel,
 } from '../database/model/ServerConfigModelController';
 import { UserModelController } from '../database/model/UserModelController';
 import Logger from './logger';
@@ -23,6 +27,7 @@ import { BroadCastEmbedBuilder } from './builders';
 import path from 'path';
 import { botConfig, projectPaths } from '../config';
 import { getTextChannelByID } from '../commands/adminconfig';
+import { getGuildMember } from './discord';
 type ServerConfig = DbServerConfig & { users: Snowflake[] };
 export type BroadcastType = Exclude<
   BadActorSubcommand,
@@ -72,28 +77,29 @@ export abstract class Broadcaster {
       await Logger.error(`Failed to broadcast to servers: ${e}`);
     }
 
-    try {
-      await this.takeModerationAction({
-        client,
-        dbBadActor,
-        broadcastType,
-        validLogChannels,
-        listenersMap,
-      });
-    } catch (e) {
-      await Logger.error(`Failed to take moderation action: ${e}`);
+    if (broadcastType === 'report') {
+      try {
+        await this.takeModerationAction({
+          client,
+          dbBadActor,
+          validLogChannels,
+          listenersMap,
+        });
+      } catch (e) {
+        await Logger.error(`Failed to take moderation action: ${e}`);
+      }
     }
   }
 
   private static async takeModerationAction(options: {
     client: Client;
     dbBadActor: DbBadActor;
-    broadcastType: BroadcastType;
     validLogChannels: { guildID: Snowflake; logChannel: TextChannel }[];
     listenersMap: Map<Snowflake, ServerConfig>;
   }) {
-    const { client, dbBadActor, broadcastType, validLogChannels } = options;
+    const { client, dbBadActor, validLogChannels } = options;
 
+    // Fetch the user object of the bad actor
     const badActorUser = await client.users.fetch(dbBadActor.user_id).catch(async (e) => {
       await Logger.error(
         `Failed to fetch user ${dbBadActor.user_id} to take moderation action: ${e}`,
@@ -117,7 +123,7 @@ export abstract class Broadcaster {
       return;
     }
 
-    for (const { guildID, logChannel } of validLogChannels) {
+    const handleModeration = async (logChannel: TextChannel, guildID: Snowflake): Promise<void> => {
       const serverConfig = options.listenersMap.get(guildID);
 
       const guild = await client.guilds.fetch(guildID).catch(async (e) => {
@@ -127,109 +133,121 @@ export abstract class Broadcaster {
 
       if (!guild) {
         await Logger.error(`Failed to get guild ${guildID}. Skipping moderation action.`);
-        continue;
+        return;
       }
 
       if (!serverConfig) {
         await Logger.error(
           `Failed to get server config for server ${guild.name} ${inlineCode(guild.id)}. Skipping their server.`,
         );
-        continue;
+        return;
       }
 
-      const actionToPerform = await this.getActionToPerform(
-        dbBadActor,
-        broadcastType,
-        serverConfig,
+      const actionToPerform = await this.getActionToPerform(dbBadActor, serverConfig, guild);
+
+      const targetMember = await getGuildMember({
+        client,
+        guild,
+        user: badActorUser,
+      });
+
+      const targetMemberRoles = this.getMemberRolesWithoutIgnoredRoles(
+        targetMember,
+        serverConfig.ignored_roles,
       );
 
-      if (actionToPerform === 'none') {
-        const actionLevel = this.getActionLevel(dbBadActor, serverConfig);
+      const mod = new GuildModerator({
+        guild,
+        targetUser: badActorUser,
+        dbBadActor,
+        channel: logChannel,
+      });
 
-        if (!actionLevel) {
-          await Logger.warn(
-            `Cannot find out which action to perform in ${guild.name} (${inlineCode(guild.id)}) for ${dbBadActor.actor_type}. Skipping moderation action.`,
-          );
-          await logChannel.send(
-            `Cannot find out which action to perform in your server with ${dbBadActor.actor_type}. Skipping moderation action.`,
-          );
-          continue;
-        }
+      // If the user is not a member of the server, we can only perform a preban
+      if (actionToPerform === 'ban' && !targetMember) {
+        await mod.ban();
+        return;
+      }
 
-        if (broadcastType !== 'report') {
-          await logChannel.send(
-            'Actions are only performed on new reports. No action will be taken.',
-          );
+      // from now on, we need the member object and we have to return if it's not there
+      if (!targetMember) {
+        await logChannel.send(
+          `User ${escapeMarkdown(badActorUser.globalName ?? badActorUser.username)} (${inlineCode(badActorUser.id)}) is not a member of your server. Only bans can be performed on users that are not server members but your server doesn't have banning enabled. Skipping all moderation actions.`,
+        );
+        return;
+      }
+
+      // If the uer has roles that are not ignored, we can only perform a timeout or nothing at all.
+      if (targetMemberRoles.size > 0) {
+        // If the server has the option to timeout users with roles, we can perform a timeout. Else we don't do anything.
+        if (serverConfig.timeout_users_with_role) {
+          await mod.timeout(targetMember, targetMemberRoles);
         } else {
           await logChannel.send(
-            `Your server has no automatic actions set for ${dbBadActor.actor_type}. No actions will be taken.`,
+            `User ${escapeMarkdown(badActorUser.globalName ?? badActorUser.username)} (${inlineCode(badActorUser.id)}) has roles that are not ignored. Those roles are: ${targetMemberRoles.map((r) => r.name)}. Skipping all moderation actions.`,
           );
         }
 
-        continue;
+        return;
       }
 
-      if (actionToPerform === 'timeout') {
-        await logChannel.send(
-          `User ${escapeMarkdown(badActorUser.globalName ?? badActorUser.username)} (${inlineCode(badActorUser.id)}) will be timed out for 24 hours.`,
-        );
+      // at this point, we know that the user has no roles that are not ignored so we can perform any action
+      switch (actionToPerform) {
+        case 'timeout':
+          await mod.timeout(targetMember);
+          return;
+        case 'kick':
+          await mod.kick(targetMember);
+          return;
+        case 'softban':
+          await mod.softban(targetMember);
+          return;
+        case 'ban':
+          await mod.ban();
+          return;
+        default:
+          await logChannel.send(
+            `No moderation action set for ${dbBadActor.actor_type}. No actions will be taken.`,
+          );
       }
 
-      if (actionToPerform === 'kick') {
-        await logChannel.send(
-          `User ${escapeMarkdown(badActorUser.globalName ?? badActorUser.username)} (${inlineCode(badActorUser.id)}) will be kicked.`,
-        );
-      }
+      // if we reach this point, we have no action to perform. This should never happen.
+      await logChannel.send(
+        `No moderation action set for ${dbBadActor.actor_type}. No actions will be taken.`,
+      );
+    };
 
-      if (actionToPerform === 'softban') {
-        await logChannel.send(
-          `User ${escapeMarkdown(badActorUser.globalName ?? badActorUser.username)} (${inlineCode(badActorUser.id)}) will be softbanned.`,
-        );
-      }
-
-      if (actionToPerform === 'ban') {
-        await logChannel.send(
-          `User ${escapeMarkdown(badActorUser.globalName ?? badActorUser.username)} (${inlineCode(badActorUser.id)}) will be banned.`,
-        );
-      }
-    }
+    await Promise.all(validLogChannels.map((c) => handleModeration(c.logChannel, c.guildID)));
   }
 
   private static async getActionToPerform(
     dbBadActor: DbBadActor,
-    broadcastType: BroadcastType,
     serverConfig: ServerConfig,
+    guild: Guild,
   ): Promise<ModerationAction> {
     const actionLevel = this.getActionLevel(dbBadActor, serverConfig);
+    const logStatementFail = `Failed to get action level for bad actor ${dbBadActor.actor_type} in server config for ${guild.name} (${guild.id}).`;
 
     if (actionLevel === null) {
-      await Logger.warn(
-        `No action level set for bad actor ${dbBadActor.id}. Skipping moderation action.`,
-      );
+      await Logger.warn(logStatementFail);
       return 'none';
     }
 
-    if (broadcastType === 'report') {
-      switch (actionLevel) {
-        case ActionLevel.Notify:
-          return 'none';
-        case ActionLevel.Timeout:
-          return 'timeout';
-        case ActionLevel.Kick:
-          return 'kick';
-        case ActionLevel.SoftBan:
-          return 'softban';
-        case ActionLevel.Ban:
-          return 'ban';
-        default:
-          await Logger.warn(
-            `Unknown action level ${actionLevel} for bad actor ${dbBadActor.id}. Skipping moderation action.`,
-          );
-          return 'none';
-      }
+    switch (actionLevel) {
+      case ActionLevel.Notify:
+        return 'none';
+      case ActionLevel.Timeout:
+        return 'timeout';
+      case ActionLevel.Kick:
+        return 'kick';
+      case ActionLevel.SoftBan:
+        return 'softban';
+      case ActionLevel.Ban:
+        return 'ban';
+      default:
+        await Logger.warn(logStatementFail);
+        return 'none';
     }
-
-    return 'none';
   }
 
   private static getActionLevel(
@@ -504,5 +522,127 @@ export abstract class Broadcaster {
     }
 
     return description;
+  }
+
+  private static getMemberRolesWithoutIgnoredRoles(
+    member: GuildMember | null,
+    ignoredRoles: Snowflake[],
+  ): Collection<Snowflake, Role> {
+    const removed = new Collection<Snowflake, Role>();
+
+    if (!member) {
+      return removed;
+    }
+
+    for (const [roleID, role] of member.roles.cache) {
+      if (!ignoredRoles.includes(roleID)) {
+        removed.set(roleID, role);
+      }
+    }
+
+    return removed;
+  }
+}
+
+class GuildModerator {
+  private guild: Guild;
+  private targetUser: User;
+  private dbBadActor: DbBadActor;
+  private channel: TextChannel;
+  public constructor(options: {
+    guild: Guild;
+    targetUser: User;
+    dbBadActor: DbBadActor;
+    channel: TextChannel;
+  }) {
+    this.guild = options.guild;
+    this.targetUser = options.targetUser;
+    this.dbBadActor = options.dbBadActor;
+    this.channel = options.channel;
+  }
+
+  public async ban() {
+    try {
+      await this.guild.members.ban(this.targetUser, {
+        reason: this.getReason(),
+        deleteMessageSeconds: 604800, // 7 days, the maximum
+      });
+
+      Logger.info(`Banned user ${this.displayUser()} from server ${this.displayGuild()}.`);
+      await this.channel.send(`Banned ${this.displayUserFormatted()} from your server.`);
+    } catch (e) {
+      await Logger.error(
+        `Failed to ban user ${this.displayUser()} from server ${this.displayGuild()}: ${e}`,
+      );
+      await this.channel.send(`Failed to ban user ${this.displayUserFormatted()}.`);
+    }
+  }
+
+  public async timeout(targetMember: GuildMember, targetMemberRoles?: Collection<Snowflake, Role>) {
+    try {
+      await targetMember.timeout(1000 * 60 * 60 * 24, this.getReason()); // 24 hours
+
+      Logger.info(`Timed out user ${this.displayUser()} in server ${this.displayGuild()}).`);
+
+      if (targetMemberRoles && targetMemberRoles.size > 0) {
+        await this.channel.send(
+          `Timed out ${this.displayUserFormatted()} for 24 hours, because they have roles that are not ignored. Those roles are: ${targetMemberRoles.map(
+            (r) => r.name,
+          )}.`,
+        );
+      } else {
+        await this.channel.send(`Timed out ${this.displayUserFormatted()} for 24 hours.`);
+      }
+    } catch (e) {
+      await Logger.error(
+        `Failed to timeout user ${this.displayUser()} in server ${this.displayGuild()}: ${e}`,
+      );
+      await this.channel.send(`Failed to timeout user ${this.displayUserFormatted()}.`);
+    }
+  }
+
+  public async kick(targetMember: GuildMember) {
+    try {
+      await targetMember.kick(this.getReason());
+
+      Logger.info(`Kicked user ${this.displayUser()} from server ${this.displayGuild()}.`);
+      await this.channel.send(`Kicked ${this.displayUserFormatted()} from your server.`);
+    } catch (e) {
+      await Logger.error(
+        `Failed to kick user ${this.displayUser()} from server ${this.displayGuild()}: ${e}`,
+      );
+      await this.channel.send(`Failed to kick user ${this.displayUserFormatted()}.`);
+    }
+  }
+
+  public async softban(targetMember: GuildMember) {
+    try {
+      await targetMember.ban({ reason: this.getReason(), deleteMessageSeconds: 604800 }); // 7 days, the maximum
+      await this.guild.members.unban(this.targetUser, 'Softban');
+
+      Logger.info(`Softbanned user ${this.displayUser()} from server ${this.displayGuild()}.`);
+      await this.channel.send(`Softbanned ${this.displayUserFormatted()} from your server.`);
+    } catch (e) {
+      await Logger.error(
+        `Failed to softban user ${this.displayUser()} from server ${this.displayGuild()}: ${e}`,
+      );
+      await this.channel.send(`Failed to softban user ${this.displayUserFormatted()}.`);
+    }
+  }
+
+  private displayUser() {
+    return `${this.targetUser.globalName ?? this.targetUser.username} (${this.targetUser.id})`;
+  }
+
+  private displayGuild() {
+    return `${this.guild.name} (${this.guild.id})`;
+  }
+
+  private displayUserFormatted() {
+    return `${escapeMarkdown(this.targetUser.globalName ?? this.targetUser.username)} (${inlineCode(this.targetUser.id)})`;
+  }
+
+  private getReason() {
+    return `Bad actor ${this.dbBadActor.actor_type} (${this.dbBadActor.id})`;
   }
 }
