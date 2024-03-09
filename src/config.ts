@@ -1,9 +1,8 @@
 import path from 'path';
 import { env } from 'bun';
-import { LOGGER } from './util/logger';
 
 const nodeEnv = Bun.env.NODE_ENV || 'development';
-LOGGER.info(`Loaded ${nodeEnv} config.`);
+console.log(`Loaded ${nodeEnv} config.`);
 
 export const botConfig = {
   botToken: env['DISCORD_BOT_TOKEN'],
