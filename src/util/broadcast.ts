@@ -563,10 +563,10 @@ class GuildModerator {
 
   public async ban() {
     try {
-      await this.guild.members.ban(this.targetUser, {
-        reason: this.getReason(),
-        deleteMessageSeconds: 604800, // 7 days, the maximum
-      });
+      // await this.guild.members.ban(this.targetUser, {
+      //   reason: this.getReason(),
+      //   deleteMessageSeconds: 604800,
+      // });
 
       Logger.info(`Banned user ${this.displayUser()} from server ${this.displayGuild()}.`);
       await this.channel.send(`Banned ${this.displayUserFormatted()} from your server.`);
@@ -580,7 +580,7 @@ class GuildModerator {
 
   public async timeout(targetMember: GuildMember, targetMemberRoles?: Collection<Snowflake, Role>) {
     try {
-      await targetMember.timeout(1000 * 60 * 60 * 24, this.getReason()); // 24 hours
+      // await targetMember.timeout(1000 * 60 * 60 * 24, this.getReason()); // 24 hours
 
       Logger.info(`Timed out user ${this.displayUser()} in server ${this.displayGuild()}).`);
 
@@ -603,7 +603,7 @@ class GuildModerator {
 
   public async kick(targetMember: GuildMember) {
     try {
-      await targetMember.kick(this.getReason());
+      // await targetMember.kick(this.getReason());
 
       Logger.info(`Kicked user ${this.displayUser()} from server ${this.displayGuild()}.`);
       await this.channel.send(`Kicked ${this.displayUserFormatted()} from your server.`);
@@ -617,7 +617,7 @@ class GuildModerator {
 
   public async softban(targetMember: GuildMember) {
     try {
-      await targetMember.ban({ reason: this.getReason(), deleteMessageSeconds: 604800 }); // 7 days, the maximum
+      // await targetMember.ban({ reason: this.getReason(), deleteMessageSeconds: 604800 });
       await this.guild.members.unban(this.targetUser, 'Softban');
 
       Logger.info(`Softbanned user ${this.displayUser()} from server ${this.displayGuild()}.`);
