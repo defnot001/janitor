@@ -369,7 +369,7 @@ export default new Command({
       }
 
       try {
-        await handleServerConfigUpdates(user, newServerIDs, client);
+        await handleServerConfigUpdates(user, newServerIDs);
       } catch (e) {
         await Logger.error(`Error updating server configs: ${e}`);
         await interaction.followUp('An error occurred while updating server configs.');
@@ -469,7 +469,7 @@ function getFailedGuildFetches(guildMap: Map<Snowflake, Guild | null>): Snowflak
   return failedFetches;
 }
 
-async function handleServerConfigUpdates(user: User, newServerIDs: Snowflake[], client: Client) {
+async function handleServerConfigUpdates(user: User, newServerIDs: Snowflake[]) {
   const currentUserData = await UserModelController.getUser(user.id);
   if (!currentUserData) {
     throw new Error(`User ${user.id} not found.`);
