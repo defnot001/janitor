@@ -1,4 +1,4 @@
-import type { CommandInteractionOptionResolver, Snowflake, TextBasedChannel } from 'discord.js';
+import type { CommandInteractionOptionResolver, Snowflake } from 'discord.js';
 import { Event } from '../handler/classes/Event';
 import { client } from '..';
 import { ExtendedInteraction } from '../handler/types';
