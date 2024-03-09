@@ -6,6 +6,9 @@ import {
   ActionRowBuilder,
   TextChannel,
   ComponentType,
+  GuildMember,
+  Guild,
+  User,
 } from 'discord.js';
 import { ExtendedInteraction } from '../handler/types';
 
@@ -68,4 +71,19 @@ export function getButtonCollector(interaction: ExtendedInteraction) {
   }
 
   return;
+}
+
+export async function getGuildMember(options: {
+  guild: Guild;
+  user: User;
+  client: Client;
+}): Promise<GuildMember | null> {
+  const { guild, user } = options;
+
+  try {
+    const guildMember = await guild.members.fetch(user.id);
+    return guildMember;
+  } catch {
+    return null;
+  }
 }
