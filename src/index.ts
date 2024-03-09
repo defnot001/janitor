@@ -2,13 +2,11 @@ import { GatewayIntentBits } from 'discord.js';
 import { ExtendedClient } from './handler/classes/ExtendedClient';
 import { projectPaths } from './config';
 import { Client } from 'pg';
-import { Logger } from './util/logger';
+import { LOGGER } from './util/logger';
 
 export const client = new ExtendedClient({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildModeration],
 });
-
-export const LOGGER = new Logger();
 
 await client.start({
   botToken: process.env.DISCORD_BOT_TOKEN,

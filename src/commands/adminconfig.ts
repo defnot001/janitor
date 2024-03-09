@@ -19,7 +19,7 @@ import { UserModelController } from '../database/model/UserModelController';
 import { InfoEmbedBuilder } from '../util/builders';
 import { BadActorModelController } from '../database/model/BadActorModelController';
 import { Screenshot } from '../util/attachments';
-import { LOGGER } from '..';
+import { LOGGER } from '../util/logger';
 
 export default new Command({
   name: 'adminconfig',

@@ -1,7 +1,7 @@
 import { Attachment, Snowflake } from 'discord.js';
 import path from 'path';
 import * as fs from 'fs/promises';
-import { LOGGER } from '..';
+import { LOGGER } from './logger';
 
 const STORAGE_DIRECTORY_PATH = 'screenshots' as const;
 

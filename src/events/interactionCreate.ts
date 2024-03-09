@@ -2,7 +2,7 @@ import type { CommandInteractionOptionResolver, Snowflake } from 'discord.js';
 import { Event } from '../handler/classes/Event';
 import { client } from '..';
 import { ExtendedInteraction } from '../handler/types';
-import { LOGGER } from '..';
+import { LOGGER } from '../util/logger';
 
 export default new Event('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) {

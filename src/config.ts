@@ -1,8 +1,8 @@
 import path from 'path';
 import { env } from 'bun';
-import { LOGGER } from '.';
+import { LOGGER } from './util/logger';
 
-const nodeEnv = process.env['NODE_ENV'] || 'development';
+const nodeEnv = Bun.env.NODE_ENV || 'development';
 LOGGER.info(`Loaded ${nodeEnv} config.`);
 
 export const botConfig = {

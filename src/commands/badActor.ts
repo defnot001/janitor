@@ -19,7 +19,7 @@ import { Screenshot } from '../util/attachments';
 import { getButtonCollector, getConfirmCancelRow } from '../util/discord';
 import path from 'path';
 import { Broadcaster } from '../util/broadcast';
-import { LOGGER } from '..';
+import { LOGGER } from '../util/logger';
 
 export type BadActorSubcommand =
   | 'report'

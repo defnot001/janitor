@@ -15,7 +15,7 @@ import {
   ServerConfigModelController,
   displayActionLevel,
 } from '../database/model/ServerConfigModelController';
-import { LOGGER } from '..';
+import { LOGGER } from '../util/logger';
 
 export default new Command({
   name: 'config',

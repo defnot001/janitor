@@ -9,7 +9,7 @@ import {
 } from 'discord.js';
 import { ClientStartOptions, CommandOptions, RegisterCommandOptions } from '../types';
 import { Event } from './Event';
-import { LOGGER } from '../..';
+import { LOGGER } from '../../util/logger';
 
 export class ExtendedClient extends Client {
   public commands: Collection<string, CommandOptions> = new Collection();

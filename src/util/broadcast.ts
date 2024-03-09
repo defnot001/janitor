@@ -20,7 +20,7 @@ import {
   ServerConfigModelController,
 } from '../database/model/ServerConfigModelController';
 import { UserModelController } from '../database/model/UserModelController';
-import { LOGGER } from '..';
+import { LOGGER } from './logger';
 import { BadActorSubcommand } from '../commands/badActor';
 import { DbBadActor } from '../database/model/BadActorModelController';
 import { BroadCastEmbedBuilder } from './builders';

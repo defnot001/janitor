@@ -15,7 +15,7 @@ import { UserModelController } from '../database/model/UserModelController';
 import { InfoEmbedBuilder } from '../util/builders';
 import { getServerMap, getUserMap } from '../util/discord';
 import { ServerConfigModelController } from '../database/model/ServerConfigModelController';
-import { LOGGER } from '..';
+import { LOGGER } from '../util/logger';
 
 export default new Command({
   name: 'user',

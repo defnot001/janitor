@@ -2,7 +2,7 @@ import { ActivityType, TextChannel } from 'discord.js';
 import { Event } from '../handler/classes/Event';
 import { getTextChannelByID } from '../commands/adminconfig';
 import { botConfig } from '../config';
-import { LOGGER } from '..';
+import { LOGGER } from '../util/logger';
 // import { client } from '../index';
 // import { config } from '../config';
 

@@ -14,7 +14,7 @@ const colors = {
   error: '\x1b[31m', // Red
 };
 
-export class Logger {
+class Logger {
   constructor() {}
 
   public debug(message: string): void {
@@ -86,3 +86,5 @@ export class Logger {
     }
   }
 }
+
+export const LOGGER = new Logger();
