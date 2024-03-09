@@ -133,8 +133,16 @@ export default new Command({
                   value: sc.ping_users ? 'Enabled' : 'Disabled',
                 },
                 {
-                  name: 'Action Level',
-                  value: displayActionLevel(sc.action_level),
+                  name: 'Spam Action Level',
+                  value: displayActionLevel(sc.spam_action_level),
+                },
+                {
+                  name: 'Impersonation Action Level',
+                  value: displayActionLevel(sc.impersonation_action_level),
+                },
+                {
+                  name: 'Bigotry Action Level',
+                  value: displayActionLevel(sc.bigotry_action_level),
                 },
                 {
                   name: 'Timeout Users With Role',
