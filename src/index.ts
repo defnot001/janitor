@@ -17,7 +17,7 @@ await client.start({
 });
 
 export const pgClient = new Client({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env['DATABASE_URL'],
 });
 
 pgClient

@@ -1,4 +1,4 @@
-import { Attachment, AttachmentBuilder, Snowflake } from 'discord.js';
+import { Attachment, Snowflake } from 'discord.js';
 import path from 'path';
 import * as fs from 'fs/promises';
 import Logger from './logger';

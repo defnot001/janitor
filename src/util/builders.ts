@@ -1,4 +1,4 @@
-import { APIEmbed, Client, ClientUser, EmbedBuilder, EmbedData, User } from 'discord.js';
+import { APIEmbed, ClientUser, EmbedBuilder, EmbedData, User } from 'discord.js';
 import { BroadcastType } from './broadcast';
 
 export class InfoEmbedBuilder extends EmbedBuilder {
