@@ -4,7 +4,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 
 const pgClient = new Client({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env['DATABASE_URL'],
 });
 
 const migrationsDir = path.join(projectPaths.sources, 'database', 'migrations');
