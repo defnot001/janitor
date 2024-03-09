@@ -3,7 +3,7 @@ import { Command } from '../handler/classes/Command';
 import { botConfig } from '../config';
 import { AdminModelController } from '../database/model/AdminModelController';
 import { InfoEmbedBuilder } from '../util/builders';
-import Logger from '../util/logger';
+import { LOGGER } from '..';
 
 export default new Command({
   name: 'admin',
@@ -46,13 +46,13 @@ export default new Command({
 
     if (interaction.user.id !== botConfig.superuser) {
       await interaction.editReply('You do not have permission to use this command.');
-      await Logger.warn(`${interaction.user.username} attempted to use /admin without permission.`);
+      await LOGGER.warn(`${interaction.user.username} attempted to use /admin without permission.`);
       return;
     }
 
     if (!interaction.guild || interaction.guild.id !== botConfig.adminServerID) {
       await interaction.editReply('This command can only be used in the admin server.');
-      await Logger.warn(
+      await LOGGER.warn(
         `${interaction.user.username} attempted to use /admin outside of the admin server.`,
       );
       return;
@@ -76,7 +76,7 @@ export default new Command({
 
         await interaction.editReply({ embeds: [adminEmbed] });
       } catch (e) {
-        await Logger.error(`Error fetching admins: ${e}`);
+        await LOGGER.error(`Error fetching admins: ${e}`);
         await interaction.editReply('Error fetching admins.');
       }
 
@@ -96,7 +96,7 @@ export default new Command({
           `Added ${escapeMarkdown(user.globalName ?? user.username)} as an admin.`,
         );
       } catch (e) {
-        await Logger.error(`Error adding admin: ${e}`);
+        await LOGGER.error(`Error adding admin: ${e}`);
         await interaction.editReply('Error adding admin.');
       }
 
@@ -116,7 +116,7 @@ export default new Command({
           `Removed ${escapeMarkdown(user.globalName ?? user.username)} as an admin.`,
         );
       } catch (e) {
-        await Logger.error(`Error removing admin: ${e}`);
+        await LOGGER.error(`Error removing admin: ${e}`);
         await interaction.editReply('Error removing admin.');
       }
 

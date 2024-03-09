@@ -15,7 +15,7 @@ import {
   ServerConfigModelController,
   displayActionLevel,
 } from '../database/model/ServerConfigModelController';
-import Logger from '../util/logger';
+import { LOGGER } from '..';
 
 export default new Command({
   name: 'config',
@@ -42,8 +42,62 @@ export default new Command({
           type: ApplicationCommandOptionType.Boolean,
         },
         {
-          name: 'actionlevel',
-          description: 'The level of action to take',
+          name: 'spam_actionlevel',
+          description: 'The level of action to take for spamming users with hacked accounts',
+          type: ApplicationCommandOptionType.Integer,
+          choices: [
+            {
+              name: 'Notify',
+              value: 0,
+            },
+            {
+              name: 'Timeout',
+              value: 1,
+            },
+            {
+              name: 'Kick',
+              value: 2,
+            },
+            {
+              name: 'Soft Ban',
+              value: 3,
+            },
+            {
+              name: 'Ban',
+              value: 4,
+            },
+          ],
+        },
+        {
+          name: 'impersonation_actionlevel',
+          description: 'The level of action to take for users impersonating others',
+          type: ApplicationCommandOptionType.Integer,
+          choices: [
+            {
+              name: 'Notify',
+              value: 0,
+            },
+            {
+              name: 'Timeout',
+              value: 1,
+            },
+            {
+              name: 'Kick',
+              value: 2,
+            },
+            {
+              name: 'Soft Ban',
+              value: 3,
+            },
+            {
+              name: 'Ban',
+              value: 4,
+            },
+          ],
+        },
+        {
+          name: 'bigotry_actionlevel',
+          description: 'The level of action to take for users using bigoted language',
           type: ApplicationCommandOptionType.Integer,
           choices: [
             {
@@ -89,7 +143,7 @@ export default new Command({
 
     if (!interactionGuild) {
       await interaction.editReply('This command can only be used in a server.');
-      await Logger.warn(
+      await LOGGER.warn(
         `${interaction.user.globalName ?? interaction.user.username} tried to use the config command outside of a guild.`,
       );
       return;
@@ -130,7 +184,9 @@ export default new Command({
     if (subcommand === 'update') {
       const logChannel = args.getString('logchannel');
       const pingUsers = args.getBoolean('pingusers');
-      const actionLevel = args.getInteger('actionlevel');
+      const spamActionLevel = args.getInteger('spam_actionlevel');
+      const impersonationActionLevel = args.getInteger('impersonation_actionlevel');
+      const bigotryActionLevel = args.getInteger('bigotry_actionlevel');
       const timeoutUsersWithRole = args.getBoolean('timeoutuserswithrole');
       const ignoredRoles =
         args
@@ -143,7 +199,9 @@ export default new Command({
           server_id: interactionGuild.id,
           log_channel: logChannel,
           ping_users: pingUsers,
-          action_level: actionLevel,
+          spam_action_level: spamActionLevel,
+          impersonation_action_level: impersonationActionLevel,
+          bigotry_action_level: bigotryActionLevel,
           timeout_users_with_role: timeoutUsersWithRole,
           ignored_roles: ignoredRoles,
         });
@@ -177,7 +235,7 @@ async function isUserAllowed(
 
     if (!dbUser) {
       await interaction.editReply('You are not allowed to use this command.');
-      await Logger.warn(
+      await LOGGER.warn(
         `User ${interaction.user.globalName ?? interaction.user.username} attempted to use /config in ${guild.name} but the user does not exist in the database.`,
       );
       return null;
@@ -185,7 +243,7 @@ async function isUserAllowed(
 
     if (!dbUser.servers.includes(guild.id) || guild.id === botConfig.adminServerID) {
       await interaction.editReply('You are not allowed to use this command here.');
-      await Logger.warn(
+      await LOGGER.warn(
         `${interaction.user.globalName ?? interaction.user.username} attempted to use /config in ${guild.name} but the user is not allowed to use it there.`,
       );
       return null;
@@ -194,7 +252,7 @@ async function isUserAllowed(
     return dbUser;
   } catch (e) {
     await interaction.editReply(`Failed to get user: ${e}`);
-    await Logger.error(`Failed to get user from the database: ${e}`);
+    await LOGGER.error(`Failed to get user from the database: ${e}`);
     return null;
   }
 }
@@ -224,8 +282,16 @@ function buildServerConfigEmbed(details: {
         value: details.serverConfig.ping_users ? 'Enabled' : 'Disabled',
       },
       {
-        name: 'Action Level',
-        value: displayActionLevel(details.serverConfig.action_level),
+        name: 'Spam Action Level',
+        value: displayActionLevel(details.serverConfig.spam_action_level),
+      },
+      {
+        name: 'Impersonation Action Level',
+        value: displayActionLevel(details.serverConfig.impersonation_action_level),
+      },
+      {
+        name: 'Bigotry Action Level',
+        value: displayActionLevel(details.serverConfig.bigotry_action_level),
       },
       {
         name: 'Timeout Users With Role',

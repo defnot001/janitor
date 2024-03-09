@@ -11,7 +11,6 @@ import {
 import { Command } from '../handler/classes/Command';
 import { AdminModelController } from '../database/model/AdminModelController';
 import { botConfig } from '../config';
-import Logger from '../util/logger';
 import {
   ServerConfigModelController,
   displayActionLevel,
@@ -20,6 +19,7 @@ import { UserModelController } from '../database/model/UserModelController';
 import { InfoEmbedBuilder } from '../util/builders';
 import { BadActorModelController } from '../database/model/BadActorModelController';
 import { Screenshot } from '../util/attachments';
+import { LOGGER } from '..';
 
 export default new Command({
   name: 'adminconfig',
@@ -58,7 +58,7 @@ export default new Command({
 
     if (!(await AdminModelController.isAdmin(interaction.user.id))) {
       await interaction.editReply('You do not have permission to use this command.');
-      await Logger.warn(
+      await LOGGER.warn(
         `${interaction.user.username} attempted to use /adminconfig without permission.`,
       );
       return;
@@ -66,7 +66,7 @@ export default new Command({
 
     if (!interaction.guild || interaction.guild.id !== botConfig.adminServerID) {
       await interaction.editReply('This command can only be used in the admin server.');
-      await Logger.warn(
+      await LOGGER.warn(
         `${interaction.user.username} attempted to use /adminconfig outside of the admin server.`,
       );
       return;
@@ -178,7 +178,7 @@ export default new Command({
         await interaction.editReply({ embeds });
       } catch (e) {
         await interaction.editReply('An error occurred while fetching the server configs.');
-        await Logger.error(`An error occurred while fetching the server configs: ${e}`);
+        await LOGGER.error(`An error occurred while fetching the server configs: ${e}`);
         return;
       }
     }
@@ -208,14 +208,14 @@ export default new Command({
               user.id,
             )}) has been deleted from the bad actors list.`,
           );
-          Logger.info(
+          LOGGER.info(
             `${interaction.user.globalName ?? interaction.user.username} deleted user with ID ${dbEntry.user_id} from the bad actors list.`,
           );
         } catch (e) {
-          await Logger.error(
+          await LOGGER.error(
             `An error occurred while fetching user with ID ${dbEntry.user_id}: ${e}`,
           );
-          Logger.info(
+          LOGGER.info(
             `${interaction.user.globalName ?? interaction.user.username} deleted user with ID ${dbEntry.user_id} from the bad actors list.`,
           );
           await interaction.editReply(
@@ -224,7 +224,7 @@ export default new Command({
         }
       } catch (e) {
         await interaction.editReply('An error occurred while deleting the user from the database.');
-        await Logger.error(`An error occurred while deleting the user from the database: ${e}`);
+        await LOGGER.error(`An error occurred while deleting the user from the database: ${e}`);
         return;
       }
     }
@@ -242,10 +242,10 @@ export async function getTextChannelByID(
       return channel as TextChannel;
     }
 
-    await Logger.warn(`Channel with ID ${id} is not a valid text channel.`);
+    await LOGGER.warn(`Channel with ID ${id} is not a valid text channel.`);
     return null;
   } catch (e) {
-    await Logger.error(`An error occurred while fetching channel with ID ${id}: ${e}`);
+    await LOGGER.error(`An error occurred while fetching channel with ID ${id}: ${e}`);
     return null;
   }
 }

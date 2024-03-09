@@ -1,7 +1,7 @@
 import { Attachment, Snowflake } from 'discord.js';
 import path from 'path';
 import * as fs from 'fs/promises';
-import Logger from './logger';
+import { LOGGER } from '..';
 
 const STORAGE_DIRECTORY_PATH = 'screenshots' as const;
 
@@ -70,7 +70,7 @@ export class Screenshot {
 
         const buffer = await this.downloadFileBuffer();
         await fs.writeFile(filePath, buffer);
-        Logger.info(`File saved to ${filePath}`);
+        LOGGER.info(`File saved to ${filePath}`);
       }
     } catch (e) {
       throw new Error(`Failed to save file: ${e}`);
@@ -82,9 +82,9 @@ export class Screenshot {
 
     try {
       await fs.unlink(filePath);
-      Logger.info(`File deleted: ${oldImagePath}`);
+      LOGGER.info(`File deleted: ${oldImagePath}`);
     } catch (e) {
-      await Logger.error(`Failed to delete file at ${oldImagePath}: ${e}`);
+      await LOGGER.error(`Failed to delete file at ${oldImagePath}: ${e}`);
     }
   }
 
@@ -93,9 +93,9 @@ export class Screenshot {
 
     try {
       await fs.unlink(oldFilePath);
-      Logger.info(`Old file deleted: ${oldImagePath}`);
+      LOGGER.info(`Old file deleted: ${oldImagePath}`);
     } catch (e) {
-      await Logger.error(`Failed to delete old file at ${oldImagePath}: ${e}`);
+      await LOGGER.error(`Failed to delete old file at ${oldImagePath}: ${e}`);
     }
 
     await this.saveToFileSystem();

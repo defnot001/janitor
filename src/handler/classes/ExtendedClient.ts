@@ -9,7 +9,7 @@ import {
 } from 'discord.js';
 import { ClientStartOptions, CommandOptions, RegisterCommandOptions } from '../types';
 import { Event } from './Event';
-import Logger from '../../util/logger';
+import { LOGGER } from '../..';
 
 export class ExtendedClient extends Client {
   public commands: Collection<string, CommandOptions> = new Collection();
@@ -60,7 +60,7 @@ export class ExtendedClient extends Client {
 
       await guild.commands.set([]);
 
-      Logger.info(`Successfully removed commands from ${guild.name}.`);
+      LOGGER.info(`Successfully removed commands from ${guild.name}.`);
     } else {
       if (!this.application) {
         throw new Error('Cannot find the application to remove the commands from!');
@@ -68,7 +68,7 @@ export class ExtendedClient extends Client {
 
       await this.application.commands.set([]);
 
-      Logger.info('Successfully removed all commands.');
+      LOGGER.info('Successfully removed all commands.');
     }
   }
 
@@ -84,7 +84,7 @@ export class ExtendedClient extends Client {
 
       await guild.commands.set(commands);
 
-      Logger.info(`Successfully registered ${commands.length} commands to ${guild.name}.`);
+      LOGGER.info(`Successfully registered ${commands.length} commands to ${guild.name}.`);
     } else {
       if (!this.application) {
         throw new Error('Cannot find the application to register the commands to');
@@ -92,7 +92,7 @@ export class ExtendedClient extends Client {
 
       await this.application.commands.set(commands);
 
-      Logger.info(`Successfully registered ${commands.length} global commands.`);
+      LOGGER.info(`Successfully registered ${commands.length} global commands.`);
     }
   }
 

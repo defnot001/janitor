@@ -13,13 +13,13 @@ import {
 import { Command } from '../handler/classes/Command';
 import { botConfig, projectPaths } from '../config';
 import { DbUser, UserModelController } from '../database/model/UserModelController';
-import Logger from '../util/logger';
 import { DbBadActor, BadActorModelController } from '../database/model/BadActorModelController';
 import { InfoEmbedBuilder } from '../util/builders';
 import { Screenshot } from '../util/attachments';
 import { getButtonCollector, getConfirmCancelRow } from '../util/discord';
 import path from 'path';
 import { Broadcaster } from '../util/broadcast';
+import { LOGGER } from '..';
 
 export type BadActorSubcommand =
   | 'report'
@@ -211,7 +211,7 @@ export default new Command({
 
     if (!interactionGuild) {
       await interaction.editReply('This command can only be used in a server.');
-      await Logger.warn(
+      await LOGGER.warn(
         `User ${interaction.user.globalName ?? interaction.user.username} attempted to use /badactor outside of a guild.`,
       );
       return;
@@ -235,7 +235,7 @@ export default new Command({
 
         if (badActors.length === 0) {
           await interaction.editReply('There are no bad actors in the database.');
-          await Logger.warn(
+          await LOGGER.warn(
             `User ${interaction.user.globalName ?? interaction.user.username} attempted to use /badactor display in ${interactionGuild.name} but there are no bad actors in the database.`,
           );
           return;
@@ -250,7 +250,7 @@ export default new Command({
         await interaction.editReply({ embeds, files: attachments });
       } catch (e) {
         await interaction.editReply(`Failed to get bad actors from the database.`);
-        await Logger.error(`Failed to get bad actors from the database: ${e}`);
+        await LOGGER.error(`Failed to get bad actors from the database: ${e}`);
         return;
       }
     }
@@ -262,7 +262,7 @@ export default new Command({
         await interaction.editReply(
           'Cannot find the user. You either made a typo or the user does not exist (anymore).',
         );
-        await Logger.warn(
+        await LOGGER.warn(
           `${interaction.user.globalName ?? interaction.user.username} attempted to use /badactor display in ${interactionGuild.name} but did not provide a valid user.`,
         );
         return;
@@ -285,7 +285,7 @@ export default new Command({
         await interaction.editReply({ embeds, files: attachments });
       } catch (e) {
         await interaction.editReply(`Failed to get bad actors from the database.`);
-        await Logger.error(`Failed to get bad actors from the database: ${e}`);
+        await LOGGER.error(`Failed to get bad actors from the database: ${e}`);
         return;
       }
     }
@@ -310,7 +310,7 @@ export default new Command({
         await interaction.editReply({ embeds, files: attachments });
       } catch (e) {
         await interaction.editReply(`Failed to get the bad actor from the database.`);
-        await Logger.error(`Failed to get the bad actor from the database: ${e}`);
+        await LOGGER.error(`Failed to get the bad actor from the database: ${e}`);
         return;
       }
     }
@@ -325,7 +325,7 @@ export default new Command({
         await interaction.editReply(
           'Cannot find the user. You either made a typo or the user does not exist (anymore).',
         );
-        await Logger.warn(
+        await LOGGER.warn(
           `${interaction.user.globalName ?? interaction.user.username} attempted to use /badactor report in ${interactionGuild.name} but did not provide a valid user.`,
         );
         return;
@@ -353,13 +353,13 @@ export default new Command({
         await interaction.editReply(
           `Failed to check if the user is already reported as a bad actor.`,
         );
-        await Logger.error(`Failed to check if the user is already reported as a bad actor: ${e}`);
+        await LOGGER.error(`Failed to check if the user is already reported as a bad actor: ${e}`);
         return;
       }
 
       if (!attachment && !explanation) {
         await interaction.editReply('You must provide a screenshot or an explanation.');
-        await Logger.warn(
+        await LOGGER.warn(
           `${interaction.user.globalName ?? interaction.user.username} attempted to use /badactor report in ${interactionGuild.name} but did not provide a screenshot or an explanation.`,
         );
         return;
@@ -377,7 +377,7 @@ export default new Command({
 
       if (!collector) {
         await interaction.editReply('Failed to create a button collector.');
-        await Logger.error(`Failed to create a button collector for /badactor report.`);
+        await LOGGER.error(`Failed to create a button collector for /badactor report.`);
         return;
       }
 
@@ -398,7 +398,7 @@ export default new Command({
               await screenshot.saveToFileSystem();
             } catch (e) {
               await interaction.editReply(`Failed to save the screenshot.`);
-              await Logger.error(`Failed to save the screenshot: ${e}`);
+              await LOGGER.error(`Failed to save the screenshot: ${e}`);
               return;
             }
           }
@@ -413,7 +413,7 @@ export default new Command({
               explanation: explanation ?? null,
             });
 
-            Logger.info(
+            LOGGER.info(
               `User ${interaction.user.globalName ?? interaction.user.username} reported user ${badActorUser.globalName ?? badActorUser.username} as a bad actor in ${interactionGuild.name}.`,
             );
 
@@ -433,12 +433,12 @@ export default new Command({
               await interaction.editReply({ embeds, files: attachments });
             } catch (e) {
               await interaction.editReply('Failed to send the bad actor embed.');
-              await Logger.error(`Failed to send the bad actor embed: ${e}`);
+              await LOGGER.error(`Failed to send the bad actor embed: ${e}`);
               return;
             }
           } catch (e) {
             await interaction.editReply(`Failed to create a bad actor in the database.`);
-            await Logger.error(`Failed to create a bad actor in the database: ${e}`);
+            await LOGGER.error(`Failed to create a bad actor in the database: ${e}`);
             return;
           }
         } else if (buttonInteraction.customId === 'cancel') {
@@ -474,7 +474,7 @@ export default new Command({
           last_changed_by: interaction.user.id,
         });
 
-        Logger.info(
+        LOGGER.info(
           `User ${interaction.user.globalName ?? interaction.user.username} deactivated bad actor ${id} in ${interactionGuild.name}.`,
         );
 
@@ -496,11 +496,11 @@ export default new Command({
           await interaction.editReply(
             'Failed to send the bad actor embed. The entry has been deactivated.',
           );
-          await Logger.error(`Failed to send the bad actor embed: ${e}`);
+          await LOGGER.error(`Failed to send the bad actor embed: ${e}`);
         }
       } catch (e) {
         await interaction.editReply(`Failed to get the bad actor from the database.`);
-        await Logger.error(`Failed to get the bad actor from the database: ${e}`);
+        await LOGGER.error(`Failed to get the bad actor from the database: ${e}`);
         return;
       }
     }
@@ -528,7 +528,7 @@ export default new Command({
           last_changed_by: interaction.user.id,
         });
 
-        Logger.info(
+        LOGGER.info(
           `User ${interaction.user.globalName ?? interaction.user.username} reactivated bad actor ${id} in ${interactionGuild.name}.`,
         );
 
@@ -550,11 +550,11 @@ export default new Command({
           await interaction.editReply(
             'Failed to send the bad actor embed. The entry has been reactivated.',
           );
-          await Logger.error(`Failed to send the bad actor embed: ${e}`);
+          await LOGGER.error(`Failed to send the bad actor embed: ${e}`);
         }
       } catch (e) {
         await interaction.editReply(`Failed to get the bad actor from the database.`);
-        await Logger.error(`Failed to get the bad actor from the database: ${e}`);
+        await LOGGER.error(`Failed to get the bad actor from the database: ${e}`);
         return;
       }
     }
@@ -592,7 +592,7 @@ export default new Command({
           interaction.user.id,
         );
 
-        Logger.info(
+        LOGGER.info(
           `User ${interaction.user.globalName ?? interaction.user.username} added a screenshot to bad actor ${id} in ${interactionGuild.name}.`,
         );
 
@@ -612,11 +612,11 @@ export default new Command({
           await interaction.editReply({ embeds, files: attachments });
         } catch (e) {
           await interaction.editReply('Failed to send the bad actor embed.');
-          await Logger.error(`Failed to send the bad actor embed: ${e}`);
+          await LOGGER.error(`Failed to send the bad actor embed: ${e}`);
         }
       } catch (e) {
         await interaction.editReply(`Failed to get the bad actor from the database.`);
-        await Logger.error(`Failed to get the bad actor from the database: ${e}`);
+        await LOGGER.error(`Failed to get the bad actor from the database: ${e}`);
         return;
       }
     }
@@ -656,7 +656,7 @@ export default new Command({
           interaction.user.id,
         );
 
-        Logger.info(
+        LOGGER.info(
           `User ${interaction.user.globalName ?? interaction.user.username} replaced the screenshot for bad actor ${id} in ${interactionGuild.name}.`,
         );
 
@@ -676,11 +676,11 @@ export default new Command({
           await interaction.editReply({ embeds, files: attachments });
         } catch (e) {
           await interaction.editReply('Failed to send the bad actor embed.');
-          await Logger.error(`Failed to send the bad actor embed: ${e}`);
+          await LOGGER.error(`Failed to send the bad actor embed: ${e}`);
         }
       } catch (e) {
         await interaction.editReply(`Failed to get the bad actor from the database.`);
-        await Logger.error(`Failed to get the bad actor from the database: ${e}`);
+        await LOGGER.error(`Failed to get the bad actor from the database: ${e}`);
         return;
       }
     }
@@ -706,7 +706,7 @@ export default new Command({
 
         await BadActorModelController.updateExplanation(id, explanation, interaction.user.id);
 
-        Logger.info(
+        LOGGER.info(
           `User ${interaction.user.globalName ?? interaction.user.username} added an explanation to bad actor ${id} in ${interactionGuild.name}.`,
         );
 
@@ -726,11 +726,11 @@ export default new Command({
           await interaction.editReply({ embeds, files: attachments });
         } catch (e) {
           await interaction.editReply('Failed to send the bad actor embed.');
-          await Logger.error(`Failed to send the bad actor embed: ${e}`);
+          await LOGGER.error(`Failed to send the bad actor embed: ${e}`);
         }
       } catch (e) {
         await interaction.editReply(`Failed to get the bad actor from the database.`);
-        await Logger.error(`Failed to get the bad actor from the database: ${e}`);
+        await LOGGER.error(`Failed to get the bad actor from the database: ${e}`);
         return;
       }
     }
@@ -746,7 +746,7 @@ async function isUserAllowed(
 
     if (!dbUser) {
       await interaction.editReply('You are not allowed to use this command.');
-      await Logger.warn(
+      await LOGGER.warn(
         `User ${interaction.user.globalName ?? interaction.user.username} attempted to use /badactor in ${guild.name} but the user does not exist in the database.`,
       );
       return null;
@@ -754,7 +754,7 @@ async function isUserAllowed(
 
     if (!dbUser.servers.includes(guild.id) || guild.id === botConfig.adminServerID) {
       await interaction.editReply('You are not allowed to use this command here.');
-      await Logger.warn(
+      await LOGGER.warn(
         `${interaction.user.globalName ?? interaction.user.username} attempted to use /badactor in ${guild.name} but the user is not allowed to use it there.`,
       );
       return null;
@@ -763,7 +763,7 @@ async function isUserAllowed(
     return dbUser;
   } catch (e) {
     await interaction.editReply(`Failed to get user: ${e}`);
-    await Logger.error(`Failed to get user from the database: ${e}`);
+    await LOGGER.error(`Failed to get user from the database: ${e}`);
     return null;
   }
 }
@@ -777,14 +777,14 @@ async function getBadActorEmbeds(
 
   for (const badActor of badActors) {
     const badActorUser = await client.users.fetch(badActor.user_id).catch(async () => {
-      await Logger.warn(`Failed to fetch user ${badActor.user_id} user for embed creation.`);
+      await LOGGER.warn(`Failed to fetch user ${badActor.user_id} user for embed creation.`);
       return null;
     });
 
     const initialGuild = await client.guilds
       .fetch(badActor.originally_created_in)
       .catch(async () => {
-        await Logger.warn(
+        await LOGGER.warn(
           `Failed to fetch guild ${badActor.originally_created_in} for embed creation.`,
         );
         return null;
@@ -853,7 +853,7 @@ async function getBadActorEmbeds(
           path.join(projectPaths.sources, '..', 'screenshots', badActor.screenshot_proof),
         );
       } catch (e) {
-        await Logger.error(`Failed to create attachment for bad actor ${badActor.id}: ${e}`);
+        await LOGGER.error(`Failed to create attachment for bad actor ${badActor.id}: ${e}`);
       }
     }
 
