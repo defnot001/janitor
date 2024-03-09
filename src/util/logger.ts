@@ -14,16 +14,18 @@ const colors = {
   error: '\x1b[31m', // Red
 };
 
-export default abstract class Logger {
-  public static debug(message: string): void {
+export class Logger {
+  constructor() {}
+
+  public debug(message: string): void {
     this.log(message, 'debug');
   }
 
-  public static info(message: string): void {
+  public info(message: string): void {
     this.log(message, 'info');
   }
 
-  public static async warn(message: string): Promise<void> {
+  public async warn(message: string): Promise<void> {
     this.log(message, 'warn');
     try {
       const embed = this.buildLogEmbed(message, 'warn');
@@ -33,7 +35,7 @@ export default abstract class Logger {
     }
   }
 
-  public static async error(message: string): Promise<void> {
+  public async error(message: string): Promise<void> {
     this.log(message, 'error');
 
     try {
@@ -44,7 +46,7 @@ export default abstract class Logger {
     }
   }
 
-  private static buildLogEmbed(message: string, level: 'warn' | 'error') {
+  private buildLogEmbed(message: string, level: 'warn' | 'error') {
     const errorLogEmbed = new EmbedBuilder({
       description: message,
       color: level === 'warn' ? 16_776_960 : 16_711_680,
@@ -60,7 +62,7 @@ export default abstract class Logger {
     return errorLogEmbed.setTimestamp(Date.now());
   }
 
-  private static log(message: string, logLevel: LogLevel): void {
+  private log(message: string, logLevel: LogLevel): void {
     const now = new Date();
     const timeString = `[${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}] [${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}:${String(now.getUTCSeconds()).padStart(2, '0')}]`;
     const logLevelString = `${this.displayLogLevel(logLevel)}:`;
@@ -69,7 +71,7 @@ export default abstract class Logger {
     console.log(`${coloredPrefix} ${message}`);
   }
 
-  private static displayLogLevel(logLevel: LogLevel): string {
+  private displayLogLevel(logLevel: LogLevel): string {
     switch (logLevel) {
       case 'debug':
         return 'DEBUG';

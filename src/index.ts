@@ -2,11 +2,13 @@ import { GatewayIntentBits } from 'discord.js';
 import { ExtendedClient } from './handler/classes/ExtendedClient';
 import { projectPaths } from './config';
 import { Client } from 'pg';
-import Logger from './util/logger';
+import { Logger } from './util/logger';
 
 export const client = new ExtendedClient({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildModeration],
 });
+
+export const LOGGER = new Logger();
 
 await client.start({
   botToken: process.env.DISCORD_BOT_TOKEN,
@@ -22,8 +24,8 @@ export const pgClient = new Client({
 
 pgClient
   .connect()
-  .then(() => Logger.info('Connected to the database.'))
-  .catch(async (err) => await Logger.error(err.toString()));
+  .then(() => LOGGER.info('Connected to the database.'))
+  .catch(async (err) => await LOGGER.error(err.toString()));
 
 process.on('SIGINT', () => {
   pgClient.connect();
