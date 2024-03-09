@@ -79,6 +79,8 @@ export default new Command({
         await Logger.error(`Error fetching admins: ${e}`);
         await interaction.editReply('Error fetching admins.');
       }
+
+      return;
     }
 
     if (subcommand === 'add') {
@@ -97,6 +99,8 @@ export default new Command({
         await Logger.error(`Error adding admin: ${e}`);
         await interaction.editReply('Error adding admin.');
       }
+
+      return;
     }
 
     if (subcommand === 'remove') {
@@ -115,6 +119,11 @@ export default new Command({
         await Logger.error(`Error removing admin: ${e}`);
         await interaction.editReply('Error removing admin.');
       }
+
+      return;
     }
+
+    await interaction.editReply('Invalid subcommand.');
+    return;
   },
 });
