@@ -35,6 +35,10 @@ export abstract class BadActorModelController {
       ],
     );
 
+    if (!badActor.rows[0]) {
+      throw new Error('Failed to create bad actor');
+    }
+
     return badActor.rows[0];
   }
 
@@ -48,6 +52,10 @@ export abstract class BadActorModelController {
       return null;
     }
 
+    if (!badActor.rows[0]) {
+      throw new Error('Failed to check for active bad actor case');
+    }
+
     return badActor.rows[0];
   }
 
@@ -56,6 +64,10 @@ export abstract class BadActorModelController {
       'SELECT * FROM bad_actors WHERE id = $1 LIMIT 1',
       [id],
     );
+
+    if (!badActor.rows[0]) {
+      throw new Error('Failed to get bad actor');
+    }
 
     return badActor.rows[0];
   }
@@ -79,6 +91,10 @@ export abstract class BadActorModelController {
       [options.id, options.explanation, options.last_changed_by],
     );
 
+    if (!badActor.rows[0]) {
+      throw new Error('Failed to deactivate bad actor');
+    }
+
     return badActor.rows[0];
   }
 
@@ -92,6 +108,10 @@ export abstract class BadActorModelController {
       [options.id, options.explanation, options.last_changed_by],
     );
 
+    if (!badActor.rows[0]) {
+      throw new Error('Failed to reactivate bad actor');
+    }
+
     return badActor.rows[0];
   }
 
@@ -100,6 +120,10 @@ export abstract class BadActorModelController {
       'DELETE FROM bad_actors WHERE id = $1 RETURNING *',
       [id],
     );
+
+    if (!badActors.rows[0]) {
+      throw new Error('Failed to delete bad actor');
+    }
 
     return badActors.rows[0];
   }
@@ -132,6 +156,10 @@ export abstract class BadActorModelController {
       [id, screenshot, updatingUserID],
     );
 
+    if (!badActor.rows[0]) {
+      throw new Error('Failed to update screenshot proof');
+    }
+
     return badActor.rows[0];
   }
 
@@ -144,6 +172,10 @@ export abstract class BadActorModelController {
       'UPDATE bad_actors SET explanation = $2, last_changed_by = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
       [id, explanation, updatingUserID],
     );
+
+    if (!badActor.rows[0]) {
+      throw new Error('Failed to update explanation');
+    }
 
     return badActor.rows[0];
   }

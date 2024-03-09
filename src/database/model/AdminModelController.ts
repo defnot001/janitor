@@ -12,6 +12,10 @@ export abstract class AdminModelController {
       id,
     ]);
 
+    if (!admin.rows[0]) {
+      throw new Error('Failed to create admin.');
+    }
+
     return admin.rows[0];
   }
 
@@ -19,6 +23,10 @@ export abstract class AdminModelController {
     const admin = await pgClient.query<DbAdmin>('DELETE FROM admins WHERE id = $1 RETURNING *', [
       id,
     ]);
+
+    if (!admin.rows[0]) {
+      throw new Error('Failed to delete admin.');
+    }
 
     return admin.rows[0];
   }

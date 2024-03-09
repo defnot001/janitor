@@ -1,6 +1,5 @@
-import { Client, Snowflake } from 'discord.js';
+import { Snowflake } from 'discord.js';
 import { pgClient } from '../..';
-import { botConfig } from '../../config';
 
 export type DbUser = {
   id: Snowflake;
@@ -17,6 +16,10 @@ export abstract class UserModelController {
       'INSERT INTO users (id, servers) VALUES ($1, $2) RETURNING *',
       [createUser.id, createUser.servers],
     );
+
+    if (!user.rows[0]) {
+      throw new Error('Failed to create user.');
+    }
 
     return user.rows[0];
   }
@@ -36,11 +39,19 @@ export abstract class UserModelController {
       [updateUser.servers, updateUser.id],
     );
 
+    if (!user.rows[0]) {
+      throw new Error('Failed to update user.');
+    }
+
     return user.rows[0];
   }
 
   public static async deleteUser(id: Snowflake): Promise<DbUser> {
     const user = await pgClient.query<DbUser>('DELETE FROM users WHERE id = $1 RETURNING *', [id]);
+
+    if (!user.rows[0]) {
+      throw new Error('Failed to delete user.');
+    }
 
     return user.rows[0];
   }

@@ -60,6 +60,10 @@ export abstract class ServerConfigModelController {
       return null;
     }
 
+    if (!result.rows[0]) {
+      throw new Error('Failed to create server config');
+    }
+
     return result.rows[0];
   }
 
@@ -68,6 +72,14 @@ export abstract class ServerConfigModelController {
       'SELECT * FROM server_configs WHERE server_id = $1',
       [server_id],
     );
+
+    if (serverConfig.rows.length === 0) {
+      return null;
+    }
+
+    if (!serverConfig.rows[0]) {
+      throw new Error('Failed to get server config');
+    }
 
     return serverConfig.rows[0];
   }
@@ -122,6 +134,10 @@ export abstract class ServerConfigModelController {
       ],
     );
 
+    if (!serverConfig.rows[0]) {
+      throw new Error('Failed to update server config');
+    }
+
     return serverConfig.rows[0];
   }
 
@@ -130,6 +146,10 @@ export abstract class ServerConfigModelController {
       'DELETE FROM server_configs WHERE server_id = $1 RETURNING *',
       [server_id],
     );
+
+    if (!serverConfig.rows[0]) {
+      throw new Error('Failed to delete server config');
+    }
 
     return serverConfig.rows[0];
   }
