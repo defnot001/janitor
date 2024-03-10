@@ -78,16 +78,12 @@ export abstract class Broadcaster {
     }
 
     if (broadcastType === 'report') {
-      try {
-        await this.takeModerationAction({
-          client,
-          dbBadActor,
-          validLogChannels,
-          listenersMap,
-        });
-      } catch (e) {
-        await LOGGER.error(`Failed to take moderation action: ${e}`);
-      }
+      await this.takeModerationAction({
+        client,
+        dbBadActor,
+        validLogChannels,
+        listenersMap,
+      });
     }
   }
 
@@ -184,7 +180,7 @@ export abstract class Broadcaster {
           await mod.timeout(targetMember, targetMemberRoles);
         } else {
           await logChannel.send(
-            `User ${escapeMarkdown(badActorUser.globalName ?? badActorUser.username)} (${inlineCode(badActorUser.id)}) has roles that are not ignored. Those roles are: ${targetMemberRoles.map((r) => r.name)}. Skipping all moderation actions.`,
+            `User ${escapeMarkdown(badActorUser.globalName ?? badActorUser.username)} (${inlineCode(badActorUser.id)}) has roles that are not ignored. Those roles are: ${targetMemberRoles.map((r) => r.name).join(', ')}. Skipping all moderation actions.`,
           );
         }
 
@@ -535,6 +531,11 @@ export abstract class Broadcaster {
     }
 
     for (const [roleID, role] of member.roles.cache) {
+      // remove the @everyone role
+      if (roleID === member.guild.id) {
+        continue;
+      }
+
       if (!ignoredRoles.includes(roleID)) {
         removed.set(roleID, role);
       }
@@ -569,64 +570,108 @@ class GuildModerator {
       // });
 
       LOGGER.info(`Banned user ${this.displayUser()} from server ${this.displayGuild()}.`);
-      await this.channel.send(`Banned ${this.displayUserFormatted()} from your server.`);
     } catch (e) {
       await LOGGER.error(
         `Failed to ban user ${this.displayUser()} from server ${this.displayGuild()}: ${e}`,
       );
-      await this.channel.send(`Failed to ban user ${this.displayUserFormatted()}.`);
+
+      try {
+        await this.channel.send(`Failed to ban user ${this.displayUserFormatted()}.`);
+      } catch (e) {
+        await LOGGER.error(
+          `Failed to notify server ${this.displayGuild()} that there was an error banning ${this.displayUser()}: ${e}`,
+        );
+      }
+    }
+
+    try {
+      await this.channel.send(`Banned ${this.displayUserFormatted()} from your server.`);
+    } catch (e) {
+      await LOGGER.error(
+        `Failed to notify server ${this.displayGuild()} that user ${this.displayUser()} was banned: ${e}`,
+      );
     }
   }
 
   public async timeout(targetMember: GuildMember, targetMemberRoles?: Collection<Snowflake, Role>) {
     try {
       // await targetMember.timeout(1000 * 60 * 60 * 24, this.getReason()); // 24 hours
-
       LOGGER.info(`Timed out user ${this.displayUser()} in server ${this.displayGuild()}).`);
+    } catch (e) {
+      await LOGGER.error(
+        `Failed to timeout user ${this.displayUser()} in server ${this.displayGuild()}: ${e}`,
+      );
 
+      try {
+        await this.channel.send(`Failed to timeout user ${this.displayUserFormatted()}.`);
+      } catch (e) {
+        await LOGGER.error(
+          `Failed to notify server ${this.displayGuild()} that there was an error timing out ${this.displayUser()}: ${e}`,
+        );
+      }
+    }
+
+    try {
       if (targetMemberRoles && targetMemberRoles.size > 0) {
         await this.channel.send(
-          `Timed out ${this.displayUserFormatted()} for 24 hours, because they have roles that are not ignored. Those roles are: ${targetMemberRoles.map(
-            (r) => r.name,
-          )}.`,
+          `Timed out ${this.displayUserFormatted()} for 24 hours, because they have roles that are not ignored. Those roles are: ${targetMemberRoles
+            .map((r) => r.name)
+            .join(', ')}.`,
         );
       } else {
         await this.channel.send(`Timed out ${this.displayUserFormatted()} for 24 hours.`);
       }
     } catch (e) {
       await LOGGER.error(
-        `Failed to timeout user ${this.displayUser()} in server ${this.displayGuild()}: ${e}`,
+        `Failed to notify server ${this.displayGuild()} that user ${this.displayUser()} was timed out: ${e}`,
       );
-      await this.channel.send(`Failed to timeout user ${this.displayUserFormatted()}.`);
     }
   }
 
   public async kick(targetMember: GuildMember) {
     try {
       // await targetMember.kick(this.getReason());
-
       LOGGER.info(`Kicked user ${this.displayUser()} from server ${this.displayGuild()}.`);
-      await this.channel.send(`Kicked ${this.displayUserFormatted()} from your server.`);
     } catch (e) {
       await LOGGER.error(
         `Failed to kick user ${this.displayUser()} from server ${this.displayGuild()}: ${e}`,
       );
-      await this.channel.send(`Failed to kick user ${this.displayUserFormatted()}.`);
+
+      try {
+        await this.channel.send(`Failed to kick user ${this.displayUserFormatted()}.`);
+      } catch (e) {
+        await LOGGER.error(
+          `Failed to notify server ${this.displayGuild()} that there was an error kicking ${this.displayUser()}: ${e}`,
+        );
+      }
     }
   }
 
   public async softban(targetMember: GuildMember) {
     try {
       // await targetMember.ban({ reason: this.getReason(), deleteMessageSeconds: 604800 });
-      await this.guild.members.unban(this.targetUser, 'Softban');
-
+      // await this.guild.members.unban(this.targetUser, 'Softban');
       LOGGER.info(`Softbanned user ${this.displayUser()} from server ${this.displayGuild()}.`);
-      await this.channel.send(`Softbanned ${this.displayUserFormatted()} from your server.`);
     } catch (e) {
       await LOGGER.error(
         `Failed to softban user ${this.displayUser()} from server ${this.displayGuild()}: ${e}`,
       );
-      await this.channel.send(`Failed to softban user ${this.displayUserFormatted()}.`);
+
+      try {
+        await this.channel.send(`Failed to softban user ${this.displayUserFormatted()}.`);
+      } catch (e) {
+        await LOGGER.error(
+          `Failed to notify server ${this.displayGuild()} that there was an error softbanning ${this.displayUser()}: ${e}`,
+        );
+      }
+    }
+
+    try {
+      await this.channel.send(`Softbanned ${this.displayUserFormatted()} from your server.`);
+    } catch (e) {
+      await LOGGER.error(
+        `Failed to notify server ${this.displayGuild()} that user ${this.displayUser()} was softbanned: ${e}`,
+      );
     }
   }
 
