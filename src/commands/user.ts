@@ -126,7 +126,7 @@ export default new Command({
     if (!interaction.guild || interaction.guild.id !== botConfig.adminServerID) {
       await interaction.editReply('This command can only be used in the admin server.');
       await LOGGER.warn(
-        `User ${interaction.user.id} tried to use /user in ${interaction.guild?.name} but it can only be used in the admin server.`,
+        `User ${interaction.user.globalName ?? interaction.user.username} (${interaction.user.id}) tried to use /user in ${interaction.guild?.name} but it can only be used in the admin server.`,
       );
       return;
     }
