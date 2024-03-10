@@ -417,23 +417,29 @@ export default new Command({
               `User ${interaction.user.globalName ?? interaction.user.username} reported user ${badActorUser.globalName ?? badActorUser.username} as a bad actor in ${interactionGuild.name}.`,
             );
 
-            await Broadcaster.broadcast({
-              client,
-              broadcastType: subcommand,
-              dbBadActor,
-            });
-
             try {
-              const res = await getBadActorEmbeds([dbBadActor], interaction.user, client);
-              const embeds = res.map(([embed]) => embed);
-              const attachments = res
-                .map(([, attachment]) => attachment)
-                .filter((a) => a !== null) as AttachmentBuilder[];
+              await Broadcaster.broadcast({
+                client,
+                broadcastType: subcommand,
+                dbBadActor,
+              });
 
-              await interaction.editReply({ embeds, files: attachments });
+              try {
+                const res = await getBadActorEmbeds([dbBadActor], interaction.user, client);
+                const embeds = res.map(([embed]) => embed);
+                const attachments = res
+                  .map(([, attachment]) => attachment)
+                  .filter((a) => a !== null) as AttachmentBuilder[];
+
+                await interaction.editReply({ embeds, files: attachments });
+              } catch (e) {
+                await interaction.editReply('Failed to send the bad actor embed.');
+                await LOGGER.error(`Failed to send the bad actor embed: ${e}`);
+                return;
+              }
             } catch (e) {
-              await interaction.editReply('Failed to send the bad actor embed.');
-              await LOGGER.error(`Failed to send the bad actor embed: ${e}`);
+              await interaction.editReply('An error occured but the entry has been created.');
+              await LOGGER.error(`Failed to broadcast a bad actor in the database: ${e}`);
               return;
             }
           } catch (e) {
