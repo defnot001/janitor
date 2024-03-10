@@ -81,12 +81,13 @@ export abstract class UserModelController {
     return result.rows.map((row) => row.server_id);
   }
 
-  public static async getUserListByServer(guildID: Snowflake) {
-    const users = await pgClient.query<{ id: Snowflake; servers: Snowflake[] }>(
-      'SELECT u.id, u.servers FROM users u JOIN server_users su ON u.id = su.user_id WHERE su.server_id = $1',
-      [guildID],
-    );
+  public static async getUserListByServer(guildID: Snowflake): Promise<DbUser[]> {
+    const users = await pgClient.query<DbUser>('SELECT * FROM users WHERE $1 = ANY(servers)', [
+      guildID,
+    ]);
 
     return users.rows;
   }
 }
+
+// SELECT u.id, u.servers FROM users u JOIN server_users su ON u.id = su.user_id WHERE su.server_id = 928354280623181864
