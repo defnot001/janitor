@@ -319,7 +319,7 @@ export abstract class Broadcaster {
       promises.push(logChannel.send({ content: messageContent, embeds: [options.embed] }));
     }
 
-    await Promise.all(promises);
+    await Promise.allSettled(promises);
   }
 
   private static async getListenersMap(client: Client): Promise<Map<Snowflake, ServerConfig>> {
@@ -378,45 +378,47 @@ export abstract class Broadcaster {
         const channel = await client.channels.fetch(channelID);
 
         if (channel && channel.isTextBased() && channel instanceof TextChannel) {
+          try {
+            const clientUser = await client.user;
+
+            if (!clientUser) {
+              throw new Error('Client user not found.');
+            }
+
+            const botMember = await guild.members.fetch(clientUser.id);
+
+            if (!botMember) {
+              throw new Error('Bot member not found.');
+            }
+
+            const requiredPermissions = [
+              PermissionFlagsBits.SendMessages,
+              PermissionFlagsBits.EmbedLinks,
+              PermissionFlagsBits.AttachFiles,
+            ];
+
+            const missingPermissions = channel
+              .permissionsFor(botMember)
+              .missing(requiredPermissions);
+
+            if (missingPermissions.length > 0) {
+              await LOGGER.error(
+                `Bot does not have the required permissions in channel ${channel.name} (${channel.id}) for server ${guild.name}. The missing permissions are: ${missingPermissions.join(', ')}. Skipping server.`,
+              );
+              continue;
+            }
+          } catch (e) {
+            await LOGGER.error(
+              `Bot does not have access to channel ${channel.name} (${channel.id}) for server ${guild.name}. Skipping server: ${e}`,
+            );
+          }
+
           validLogChannels.push({ guild, logChannel: channel });
         } else {
           await LOGGER.warn(
             `Logchannel ${channelID} for server ${guild.name} is not a text channel. Skipping this channel.`,
           );
           continue;
-        }
-
-        try {
-          const clientUser = await client.user;
-
-          if (!clientUser) {
-            throw new Error('Client user not found.');
-          }
-
-          const botMember = await guild.members.fetch(clientUser.id);
-
-          if (!botMember) {
-            throw new Error('Bot member not found.');
-          }
-
-          const requiredPermissions = [
-            PermissionFlagsBits.SendMessages,
-            PermissionFlagsBits.EmbedLinks,
-            PermissionFlagsBits.AttachFiles,
-          ];
-
-          const missingPermissions = channel.permissionsFor(botMember).missing(requiredPermissions);
-
-          if (missingPermissions.length > 0) {
-            await LOGGER.error(
-              `Bot does not have the required permissions in channel ${channel.name} (${channel.id}) for server ${guild.name}. The missing permissions are: ${missingPermissions.join(', ')}. Skipping server.`,
-            );
-            continue;
-          }
-        } catch (e) {
-          await LOGGER.error(
-            `Bot does not have access to channel ${channel.name} (${channel.id}) for server ${guild.name}. Skipping server: ${e}`,
-          );
         }
       } catch (e) {
         await LOGGER.error(
