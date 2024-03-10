@@ -34,7 +34,7 @@ export default new Command({
         {
           name: 'logchannel',
           description: 'The channel to log actions to',
-          type: ApplicationCommandOptionType.String,
+          type: ApplicationCommandOptionType.Channel,
         },
         {
           name: 'pingusers',
@@ -182,7 +182,7 @@ export default new Command({
     }
 
     if (subcommand === 'update') {
-      const logChannel = args.getString('logchannel');
+      const logChannel = args.getChannel('logchannel');
       const pingUsers = args.getBoolean('pingusers');
       const spamActionLevel = args.getInteger('spam_actionlevel');
       const impersonationActionLevel = args.getInteger('impersonation_actionlevel');
@@ -197,7 +197,7 @@ export default new Command({
       try {
         const serverConfig = await ServerConfigModelController.updateServerConfig({
           server_id: interactionGuild.id,
-          log_channel: logChannel,
+          log_channel: logChannel?.id,
           ping_users: pingUsers,
           spam_action_level: spamActionLevel,
           impersonation_action_level: impersonationActionLevel,
