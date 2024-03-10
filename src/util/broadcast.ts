@@ -5,6 +5,7 @@ import {
   EmbedData,
   Guild,
   GuildMember,
+  PermissionFlagsBits,
   Role,
   Snowflake,
   TextChannel,
@@ -90,7 +91,7 @@ export abstract class Broadcaster {
   private static async takeModerationAction(options: {
     client: Client;
     dbBadActor: DbBadActor;
-    validLogChannels: { guildID: Snowflake; logChannel: TextChannel }[];
+    validLogChannels: { guild: Guild; logChannel: TextChannel }[];
     listenersMap: Map<Snowflake, ServerConfig>;
   }) {
     const { client, dbBadActor, validLogChannels } = options;
@@ -119,18 +120,8 @@ export abstract class Broadcaster {
       return;
     }
 
-    const handleModeration = async (logChannel: TextChannel, guildID: Snowflake): Promise<void> => {
-      const serverConfig = options.listenersMap.get(guildID);
-
-      const guild = await client.guilds.fetch(guildID).catch(async (e) => {
-        await LOGGER.error(`Failed to fetch server ${guildID}: ${e}`);
-        return null;
-      });
-
-      if (!guild) {
-        await LOGGER.error(`Failed to get guild ${guildID}. Skipping moderation action.`);
-        return;
-      }
+    const handleModeration = async (logChannel: TextChannel, guild: Guild): Promise<void> => {
+      const serverConfig = options.listenersMap.get(guild.id);
 
       if (!serverConfig) {
         await LOGGER.error(
@@ -213,7 +204,7 @@ export abstract class Broadcaster {
       );
     };
 
-    await Promise.all(validLogChannels.map((c) => handleModeration(c.logChannel, c.guildID)));
+    await Promise.all(validLogChannels.map((c) => handleModeration(c.logChannel, c.guild)));
   }
 
   private static async getActionToPerform(
@@ -292,18 +283,18 @@ export abstract class Broadcaster {
   private static async broadcastToServers(options: {
     embed: BroadCastEmbedBuilder;
     attachment: AttachmentBuilder | null;
-    validLogChannels: { guildID: Snowflake; logChannel: TextChannel }[];
+    validLogChannels: { guild: Guild; logChannel: TextChannel }[];
     notificationMessage: string;
     listenersMap: Map<Snowflake, ServerConfig>;
   }) {
     const promises = [];
 
-    for (const { guildID, logChannel } of options.validLogChannels) {
-      const serverConfig = options.listenersMap.get(guildID);
+    for (const { guild, logChannel } of options.validLogChannels) {
+      const serverConfig = options.listenersMap.get(guild.id);
 
       if (!serverConfig) {
         await LOGGER.error(
-          `Failed to get server config for server ${guildID}. Skipping their server.`,
+          `Failed to get server config for server ${guild.name} (${guild.id}). Skipping their server.`,
         );
         continue;
       }
@@ -371,28 +362,65 @@ export abstract class Broadcaster {
       channelID: Snowflake;
     }[],
   ) {
-    const validLogChannels: { guildID: Snowflake; logChannel: TextChannel }[] = [];
+    const validLogChannels: { guild: Guild; logChannel: TextChannel }[] = [];
 
     for (const { guildID, channelID } of serverChannelIDs) {
       const guild = await client.guilds.fetch(guildID).catch(async (e) => {
-        await LOGGER.error(`Failed to fetch server ${guildID}: ${e}`);
+        await LOGGER.error(`Failed to fetch server ${guildID}, skipping this server: ${e}.`);
+        return null;
       });
 
-      const displayGuild = guild ? guild.name : guildID;
+      if (!guild) {
+        continue;
+      }
 
       try {
         const channel = await client.channels.fetch(channelID);
 
         if (channel && channel.isTextBased() && channel instanceof TextChannel) {
-          validLogChannels.push({ guildID, logChannel: channel });
+          validLogChannels.push({ guild, logChannel: channel });
         } else {
           await LOGGER.warn(
-            `Logchannel ${channelID} for server ${displayGuild} is not a text channel. Skipping this channel.`,
+            `Logchannel ${channelID} for server ${guild.name} is not a text channel. Skipping this channel.`,
+          );
+          continue;
+        }
+
+        try {
+          const clientUser = await client.user;
+
+          if (!clientUser) {
+            throw new Error('Client user not found.');
+          }
+
+          const botMember = await guild.members.fetch(clientUser.id);
+
+          if (!botMember) {
+            throw new Error('Bot member not found.');
+          }
+
+          const requiredPermissions = [
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.EmbedLinks,
+            PermissionFlagsBits.AttachFiles,
+          ];
+
+          const missingPermissions = channel.permissionsFor(botMember).missing(requiredPermissions);
+
+          if (missingPermissions.length > 0) {
+            await LOGGER.error(
+              `Bot does not have the required permissions in channel ${channel.name} (${channel.id}) for server ${guild.name}. The missing permissions are: ${missingPermissions.join(', ')}. Skipping server.`,
+            );
+            continue;
+          }
+        } catch (e) {
+          await LOGGER.error(
+            `Bot does not have access to channel ${channel.name} (${channel.id}) for server ${guild.name}. Skipping server: ${e}`,
           );
         }
       } catch (e) {
         await LOGGER.error(
-          `Failed to fetch channel ${channelID} for server ${displayGuild}: ${e}. Skipping this channel.`,
+          `Failed to fetch channel ${channelID} for server ${guild.name}: ${e}. Skipping this channel.`,
         );
         continue;
       }
