@@ -11,9 +11,9 @@ import {
 import { Command } from '../handler/classes/Command';
 import { botConfig } from '../config';
 import { AdminModelController } from '../database/model/AdminModelController';
-import { UserModelController } from '../database/model/UserModelController';
+import { DbUser, UserModelController } from '../database/model/UserModelController';
 import { InfoEmbedBuilder } from '../util/builders';
-import { getServerMap, getUserMap } from '../util/discord';
+import { displayUserFormatted, getServerMap, getUserMap } from '../util/discord';
 import { ServerConfigModelController } from '../database/model/ServerConfigModelController';
 import { LOGGER } from '../util/logger';
 
@@ -304,11 +304,33 @@ export default new Command({
 
         const checkedGuilds = Array.from(guilds.values()) as Guild[];
 
-        const dbUser = await UserModelController.createUser({ id: user.id, servers: serverIDs });
+        let dbUser: DbUser | null = null;
+
+        try {
+          dbUser = await UserModelController.createUser({ id: user.id, servers: serverIDs });
+        } catch (e) {
+          if (
+            e &&
+            e !== null &&
+            typeof e === 'object' &&
+            'message' in e &&
+            typeof e.message === 'string' &&
+            e.message.includes('duplicate key value violates unique constraint "users_pkey"')
+          ) {
+            await interaction.editReply(
+              `User ${displayUserFormatted(user)} is already on the whitelist.`,
+            );
+          }
+        }
+
+        if (!dbUser) {
+          return;
+        }
+
         const serverNames = checkedGuilds.map((g) => g.name);
 
         await interaction.editReply(
-          `Added User ${escapeMarkdown(user.globalName ?? user.username)} with ID ${inlineCode(dbUser.id)} to whitelist.\nThey are allowed to use the bot in the following servers: ${serverNames.join(', ')}`,
+          `Added User ${escapeMarkdown(user.globalName ?? user.username)} with ID ${inlineCode(user.id)} to whitelist.\nThey are allowed to use the bot in the following servers: ${serverNames.join(', ')}`,
         );
 
         for await (const guild of checkedGuilds) {
