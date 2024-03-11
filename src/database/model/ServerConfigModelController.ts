@@ -36,6 +36,9 @@ export type DbServerConfig = {
   created_at: Date;
   updated_at: Date;
 };
+
+export type ServerConfig = DbServerConfig & { userIDs: Snowflake[] };
+
 type CreateServerConfig = {
   server_id: Snowflake;
   spam_action_level?: ActionLevel | null;
