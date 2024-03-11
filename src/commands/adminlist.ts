@@ -3,7 +3,7 @@ import { AdminModelController } from '../database/model/AdminModelController';
 import { InfoEmbedBuilder } from '../util/builders';
 import { LOGGER } from '../util/logger';
 import { hasUserPermission } from '../util/permission';
-import { displayUserFormatted } from '../util/util';
+import { displayUserFormatted } from '../util/discord';
 
 const commandName = 'adminlist';
 
@@ -12,11 +12,7 @@ export default new Command({
   description: 'Lists all the admins of the bot',
   execute: async ({ interaction, client }) => {
     await interaction.deferReply();
-    const checkPermission = await hasUserPermission({ interaction, commandName });
-
-    if (!checkPermission) {
-      return;
-    }
+    if (!(await hasUserPermission({ interaction, commandName }))) return;
 
     try {
       const admins = await AdminModelController.getAllAdmins();
