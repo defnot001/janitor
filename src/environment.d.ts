@@ -6,5 +6,6 @@ declare module 'bun' {
     ADMIN_SERVER_ID: string;
     ADMIN_SERVER_LOG_CHANNEL: string;
     ADMIN_SERVER_ERROR_LOG_CHANNEL: string;
+    SUPERUSER: string;
   }
 }

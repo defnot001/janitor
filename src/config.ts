@@ -11,6 +11,7 @@ export const botConfig = {
   adminServerID: env['ADMIN_SERVER_ID'],
   adminServerLogChannel: env['ADMIN_SERVER_LOG_CHANNEL'],
   adminServerErrorLogChannel: env['ADMIN_SERVER_ERROR_LOG_CHANNEL'],
+  superuser: env['SUPERUSER'],
 } as const;
 
 function isConfigFullySet(config: { [key: string]: any }): boolean {
