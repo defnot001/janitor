@@ -89,5 +89,3 @@ export abstract class UserModelController {
     return users.rows;
   }
 }
-
-// SELECT u.id, u.servers FROM users u JOIN server_users su ON u.id = su.user_id WHERE su.server_id = 928354280623181864
