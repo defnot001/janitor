@@ -17,7 +17,7 @@ import {
 } from 'discord.js';
 import {
   ActionLevel,
-  DbServerConfig,
+  ServerConfig,
   ServerConfigModelController,
 } from '../database/model/ServerConfigModelController';
 import { UserModelController } from '../database/model/UserModelController';
@@ -27,9 +27,7 @@ import { DbBadActor } from '../database/model/BadActorModelController';
 import { BroadCastEmbedBuilder } from './builders';
 import path from 'path';
 import { botConfig, projectPaths } from '../config';
-import { getTextChannelByID } from '../commands/adminconfig';
-import { getGuildMember } from './discord';
-type ServerConfig = DbServerConfig & { users: Snowflake[] };
+import { getGuildMember, getTextChannelByID } from './discord';
 export type BroadcastType = Exclude<
   BadActorSubcommand,
   'display_latest' | 'display_by_user' | 'display_by_id'
@@ -302,7 +300,7 @@ export abstract class Broadcaster {
       let messageContent = options.notificationMessage;
 
       if (serverConfig.ping_users === true) {
-        messageContent = `${serverConfig.users.map((u) => userMention(u)).join(' ')}\n${options.notificationMessage}`;
+        messageContent = `${serverConfig.userIDs.map((u) => userMention(u)).join(' ')}\n${options.notificationMessage}`;
       }
 
       if (options.attachment !== null) {
@@ -336,7 +334,7 @@ export abstract class Broadcaster {
 
       try {
         const users = await UserModelController.getUserListByServer(config.server_id);
-        const serverconfig: ServerConfig = { ...config, users: users.map((user) => user.id) };
+        const serverconfig: ServerConfig = { ...config, userIDs: users.map((user) => user.id) };
         configMap.set(config.server_id, serverconfig);
       } catch (e) {
         try {
