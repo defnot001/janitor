@@ -7,30 +7,6 @@ export type DbAdmin = {
 };
 
 export abstract class AdminModelController {
-  public static async createAdmin(id: Snowflake): Promise<DbAdmin> {
-    const admin = await pgClient.query<DbAdmin>('INSERT INTO admins (id) VALUES ($1) RETURNING *', [
-      id,
-    ]);
-
-    if (!admin.rows[0]) {
-      throw new Error('Failed to create admin.');
-    }
-
-    return admin.rows[0];
-  }
-
-  public static async deleteAdmin(id: Snowflake): Promise<DbAdmin> {
-    const admin = await pgClient.query<DbAdmin>('DELETE FROM admins WHERE id = $1 RETURNING *', [
-      id,
-    ]);
-
-    if (!admin.rows[0]) {
-      throw new Error('Failed to delete admin.');
-    }
-
-    return admin.rows[0];
-  }
-
   public static async getAllAdmins(): Promise<DbAdmin[]> {
     const admins = await pgClient.query<DbAdmin>('SELECT * FROM admins');
 
