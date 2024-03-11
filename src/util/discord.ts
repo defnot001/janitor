@@ -9,32 +9,57 @@ import {
   GuildMember,
   Guild,
   User,
+  ChannelType,
+  escapeMarkdown,
+  inlineCode,
+  time,
 } from 'discord.js';
 import { ExtendedInteraction } from '../handler/types';
+import { LOGGER } from './logger';
 
+/**
+ * Fetches guilds from an array of guild IDs.
+ * Returns a Map of guild IDs to guilds.
+ */
 export async function getServerMap(
-  serverIDs: Snowflake[],
+  guildIDs: Snowflake[],
   client: Client,
-): Promise<Map<Snowflake, string>> {
-  const serverMap: Map<Snowflake, string> = new Map();
+): Promise<Map<Snowflake, Guild | null>> {
+  const serverMap: Map<Snowflake, Guild | null> = new Map();
 
-  for (const serverID of serverIDs) {
-    const server = await client.guilds.fetch(serverID);
-    serverMap.set(serverID, server.name);
+  for (const guildID of guildIDs) {
+    try {
+      const guild = await client.guilds.fetch(guildID);
+      serverMap.set(guildID, guild);
+      LOGGER.debug(`Fetched guild with ID ${guildID}.`);
+    } catch (e) {
+      serverMap.set(guildID, null);
+      await LOGGER.warn(`Guild with ID ${guildID} could not be fetched.`);
+    }
   }
 
   return serverMap;
 }
 
+/**
+ * Fetches users from an array of user IDs.
+ * Returns a Map of user IDs to users or null if the user wasn't found.
+ */
 export async function getUserMap(
   userIDs: Snowflake[],
   client: Client,
-): Promise<Map<Snowflake, string>> {
-  const userMap: Map<Snowflake, string> = new Map();
+): Promise<Map<Snowflake, User | null>> {
+  const userMap: Map<Snowflake, User | null> = new Map();
 
   for (const userID of userIDs) {
-    const discordUser = await client.users.fetch(userID);
-    userMap.set(userID, discordUser.globalName ?? discordUser.username);
+    try {
+      const user = await client.users.fetch(userID);
+      userMap.set(userID, user);
+      LOGGER.debug(`Fetched user with ID ${userID}.`);
+    } catch {
+      userMap.set(userID, null);
+      await LOGGER.warn(`User with ID ${userID} was not found.`);
+    }
   }
 
   return userMap;
@@ -73,6 +98,10 @@ export function getButtonCollector(interaction: ExtendedInteraction) {
   return;
 }
 
+/**
+ * Fetches a GuildMember by their User ID.
+ * Returns null if the user is not a member of the guild.
+ */
 export async function getGuildMember(options: {
   guild: Guild;
   user: User;
@@ -86,4 +115,68 @@ export async function getGuildMember(options: {
   } catch {
     return null;
   }
+}
+
+/**
+ * Fetches a TextChannel by its ID.
+ * Returns null if the channel is not a valid text channel.
+ */
+export async function getTextChannelByID(
+  client: Client,
+  id: Snowflake,
+): Promise<TextChannel | null> {
+  try {
+    const channel = await client.channels.fetch(id);
+
+    if (channel && channel.isTextBased() && channel.type === ChannelType.GuildText) {
+      return channel as TextChannel;
+    }
+
+    await LOGGER.warn(`Channel with ID ${id} is not a valid text channel.`);
+    return null;
+  } catch (e) {
+    await LOGGER.error(`An error occurred while fetching channel with ID ${id}: ${e}`);
+    return null;
+  }
+}
+
+/**
+ * Returns the user's global name in the format `username (123456789012345678)`
+ * Markdown is escaped and the user's ID is in an inline Codeblock.
+ * For logging purposes, use `displayUser()` instead.
+ */
+export function displayUserFormatted(user: User): string {
+  return `${escapeMarkdown(user.globalName ?? user.username)} (${inlineCode(user.id)})`;
+}
+
+/**
+ * Returns the user's global name in the format `username (123456789012345678)`
+ * For displaying to the user in discord, use `displayUserFormatted()` instead.
+ */
+export function displayUser(user: User): string {
+  return `${user.globalName ?? user.username} (${user.id})`;
+}
+
+/**
+ * Returns the guild's name in the format `guildname (123456789012345678)`
+ * Markdown is escaped and the guild's ID is in an inline Codeblock.
+ * For logging purposes, use `displayGuild()` instead.
+ */
+export function displayGuild(guild: Guild): string {
+  return `${guild.name} (${guild.id})`;
+}
+
+/**
+ * Returns the guild's name in the format `guildname (123456789012345678)`
+ * For displaying to the user in discord, use `displayGuildFormatted()` instead.
+ */
+export function displayGuildFormatted(guild: Guild): string {
+  return `${escapeMarkdown(guild.name)} (${inlineCode(guild.id)})`;
+}
+
+/**
+ * Returns a formatted discord timestamp in the format fulldate (relative)`.
+ */
+export function displayDateTimeFormatted(dateTime: Date): string {
+  return `${time(dateTime, 'D')}\n(${time(dateTime, 'R')})`;
 }
