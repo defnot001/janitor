@@ -392,6 +392,7 @@ export abstract class Broadcaster {
             }
 
             const requiredPermissions = [
+              PermissionFlagsBits.ViewChannel,
               PermissionFlagsBits.SendMessages,
               PermissionFlagsBits.EmbedLinks,
               PermissionFlagsBits.AttachFiles,
