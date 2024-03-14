@@ -36,6 +36,11 @@ export default new Command({
           type: ApplicationCommandOptionType.Boolean,
         },
         {
+          name: 'pingrole',
+          description: 'The role to ping when actions are taken',
+          type: ApplicationCommandOptionType.Role,
+        },
+        {
           name: 'spam_actionlevel',
           description: 'The level of action to take for spamming users with hacked accounts',
           type: ApplicationCommandOptionType.Integer,
@@ -169,6 +174,7 @@ export default new Command({
     if (subcommand === 'update') {
       const logChannel = args.getChannel('logchannel');
       const pingUsers = args.getBoolean('pingusers');
+      const pingRole = args.getRole('pingrole');
       const spamActionLevel = args.getInteger('spam_actionlevel');
       const impersonationActionLevel = args.getInteger('impersonation_actionlevel');
       const bigotryActionLevel = args.getInteger('bigotry_actionlevel');
@@ -184,6 +190,7 @@ export default new Command({
           server_id: details.guild.id,
           log_channel: logChannel?.id,
           ping_users: pingUsers,
+          ping_role: pingRole?.id,
           spam_action_level: spamActionLevel,
           impersonation_action_level: impersonationActionLevel,
           bigotry_action_level: bigotryActionLevel,
@@ -234,6 +241,10 @@ function buildServerConfigEmbed(details: {
       {
         name: 'Ping Admins',
         value: details.serverConfig.ping_users ? 'Enabled' : 'Disabled',
+      },
+      {
+        name: 'Ping Role',
+        value: details.serverConfig.ping_role ? `<@&${details.serverConfig.ping_role}>` : 'Not set',
       },
       {
         name: 'Spam Action Level',
