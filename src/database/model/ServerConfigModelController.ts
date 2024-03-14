@@ -28,6 +28,7 @@ export type DbServerConfig = {
   server_id: Snowflake;
   log_channel: Snowflake | null;
   ping_users: boolean;
+  ping_role: Snowflake | null;
   spam_action_level: ActionLevel;
   impersonation_action_level: ActionLevel;
   bigotry_action_level: ActionLevel;
@@ -46,6 +47,7 @@ type CreateServerConfig = {
   bigotry_action_level?: ActionLevel | null;
   log_channel?: Snowflake | null;
   ping_users?: boolean | null;
+  ping_role?: Snowflake | null;
   timeout_users_with_role?: boolean | null;
   ignored_roles?: Snowflake[] | null;
 };
@@ -119,18 +121,20 @@ export abstract class ServerConfigModelController {
 
     const logChannel = updateServerConfig.log_channel || currentServerConfig.log_channel;
     const pingUsers = updateServerConfig.ping_users || currentServerConfig.ping_users;
+    const pingRole = updateServerConfig.ping_role || currentServerConfig.ping_role;
     const timeoutUsersWithRole =
       updateServerConfig.timeout_users_with_role || currentServerConfig.timeout_users_with_role;
     const ignoredRoles = updateServerConfig.ignored_roles || currentServerConfig.ignored_roles;
 
     const serverConfig = await pgClient.query<DbServerConfig>(
-      'UPDATE server_configs SET spam_action_level = $1, impersonation_action_level = $2, bigotry_action_level = $3, log_channel = $4, ping_users = $5, timeout_users_with_role = $6, ignored_roles = $7, updated_at = NOW() WHERE server_id = $8 RETURNING *',
+      'UPDATE server_configs SET spam_action_level = $1, impersonation_action_level = $2, bigotry_action_level = $3, log_channel = $4, ping_users = $5, ping_role = $6, timeout_users_with_role = $7, ignored_roles = $8, updated_at = NOW() WHERE server_id = $9 RETURNING *',
       [
         spam_action_level,
         impersonation_action_level,
         bigotry_action_level,
         logChannel,
         pingUsers,
+        pingRole,
         timeoutUsersWithRole,
         ignoredRoles,
         updateServerConfig.server_id,
