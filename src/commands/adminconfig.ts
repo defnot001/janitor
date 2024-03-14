@@ -210,7 +210,6 @@ async function buildEmbedsFromDbConfigs(options: {
       await interaction.followUp(
         `Failed to fetch information to build a server config embed for server ID ${dbServerConfig.server_id}.`,
       );
-      continue;
     }
   }
 
