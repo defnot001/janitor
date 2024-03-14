@@ -1,13 +1,5 @@
-import {
-  ApplicationCommandOptionType,
-  CommandInteraction,
-  Guild,
-  User,
-  inlineCode,
-  time,
-} from 'discord.js';
+import { ApplicationCommandOptionType, Guild, User, inlineCode, time } from 'discord.js';
 import { Command } from '../handler/classes/Command';
-import { DbUser, UserModelController } from '../database/model/UserModelController';
 import { botConfig } from '../config';
 import { InfoEmbedBuilder } from '../util/builders';
 import {
@@ -15,10 +7,12 @@ import {
   ServerConfigModelController,
   displayActionLevel,
 } from '../database/model/ServerConfigModelController';
-import { LOGGER } from '../util/logger';
+import { checkUserInDatabase } from '../util/permission';
+
+const commandName = 'config';
 
 export default new Command({
-  name: 'config',
+  name: commandName,
   description: 'Configure the bot for your server',
   options: [
     {
@@ -139,29 +133,19 @@ export default new Command({
   execute: async ({ interaction, args }) => {
     await interaction.deferReply();
 
-    const interactionGuild = interaction.guild;
+    const details = await checkUserInDatabase({ interaction, commandName });
+    if (!details) return;
 
-    if (!interactionGuild) {
-      await interaction.editReply('This command can only be used in a server.');
-      await LOGGER.warn(
-        `${interaction.user.globalName ?? interaction.user.username} tried to use the config command outside of a guild.`,
-      );
-      return;
-    }
-
-    const dbUser = await isUserAllowed(interactionGuild, interaction);
-    if (!dbUser) return;
-
-    const subcommand = args.getSubcommand() as 'display' | 'update';
-
-    if (interactionGuild.id === botConfig.adminServerID) {
+    if (details.guild.id === botConfig.adminServerID) {
       await interaction.editReply('This command is not available in the admin server.');
       return;
     }
 
+    const subcommand = args.getSubcommand() as 'display' | 'update';
+
     if (subcommand === 'display') {
       try {
-        const serverConfig = await ServerConfigModelController.getServerConfig(interactionGuild.id);
+        const serverConfig = await ServerConfigModelController.getServerConfig(details.guild.id);
 
         if (!serverConfig) {
           await interaction.editReply('Server config not found.');
@@ -169,12 +153,13 @@ export default new Command({
         }
 
         const embed = buildServerConfigEmbed({
-          guild: interactionGuild,
+          guild: details.guild,
           user: interaction.user,
           serverConfig,
         });
 
         await interaction.editReply({ embeds: [embed] });
+        return;
       } catch (e) {
         await interaction.editReply(`Failed to get server config: ${e}`);
         return;
@@ -196,7 +181,7 @@ export default new Command({
 
       try {
         const serverConfig = await ServerConfigModelController.updateServerConfig({
-          server_id: interactionGuild.id,
+          server_id: details.guild.id,
           log_channel: logChannel?.id,
           ping_users: pingUsers,
           spam_action_level: spamActionLevel,
@@ -212,7 +197,7 @@ export default new Command({
         }
 
         const embed = buildServerConfigEmbed({
-          guild: interactionGuild,
+          guild: details.guild,
           user: interaction.user,
           serverConfig,
         });
@@ -225,37 +210,6 @@ export default new Command({
     }
   },
 });
-
-async function isUserAllowed(
-  guild: Guild,
-  interaction: CommandInteraction,
-): Promise<DbUser | null> {
-  try {
-    const dbUser = await UserModelController.getUser(interaction.user.id);
-
-    if (!dbUser) {
-      await interaction.editReply('You are not allowed to use this command.');
-      await LOGGER.warn(
-        `User ${interaction.user.globalName ?? interaction.user.username} attempted to use /config in ${guild.name} but the user does not exist in the database.`,
-      );
-      return null;
-    }
-
-    if (!dbUser.servers.includes(guild.id) || guild.id === botConfig.adminServerID) {
-      await interaction.editReply('You are not allowed to use this command here.');
-      await LOGGER.warn(
-        `${interaction.user.globalName ?? interaction.user.username} attempted to use /config in ${guild.name} but the user is not allowed to use it there.`,
-      );
-      return null;
-    }
-
-    return dbUser;
-  } catch (e) {
-    await interaction.editReply(`Failed to get user: ${e}`);
-    await LOGGER.error(`Failed to get user from the database: ${e}`);
-    return null;
-  }
-}
 
 function buildServerConfigEmbed(details: {
   user: User;
