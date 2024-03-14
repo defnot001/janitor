@@ -18,7 +18,7 @@ import { InfoEmbedBuilder } from '../util/builders';
 import { BadActorModelController, DbBadActor } from '../database/model/BadActorModelController';
 import { Screenshot } from '../util/attachments';
 import { LOGGER } from '../util/logger';
-import { hasAdminPermissions, isInteractionInAdminServer } from '../util/permission';
+import { checkAdminInDatabase, isInteractionInAdminServer } from '../util/permission';
 import { ExtendedInteraction } from '../handler/types';
 import { ExtendedClient } from '../handler/classes/ExtendedClient';
 import { displayUser, displayUserFormatted } from '../util/discord';
@@ -60,7 +60,7 @@ export default new Command({
   ],
   execute: async ({ interaction, args, client }) => {
     await interaction.deferReply();
-    if (!(await hasAdminPermissions({ interaction, commandName }))) return;
+    if (!(await checkAdminInDatabase({ interaction, commandName }))) return;
     if (!(await isInteractionInAdminServer({ interaction, commandName }))) return;
 
     const subcommand = args.getSubcommand() as 'display_configs' | 'delete_bad_actor';
