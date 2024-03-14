@@ -16,7 +16,12 @@ import { DbUser, UserModelController } from '../database/model/UserModelControll
 import { DbBadActor, BadActorModelController } from '../database/model/BadActorModelController';
 import { InfoEmbedBuilder } from '../util/builders';
 import { Screenshot } from '../util/attachments';
-import { getButtonCollector, getConfirmCancelRow } from '../util/discord';
+import {
+  displayGuild,
+  displayUser,
+  getButtonCollector,
+  getConfirmCancelRow,
+} from '../util/discord';
 import path from 'path';
 import { Broadcaster } from '../util/broadcast';
 import { LOGGER } from '../util/logger';
@@ -251,8 +256,8 @@ export default new Command({
       } catch (e) {
         await interaction.editReply(`Failed to get bad actors from the database.`);
         await LOGGER.error(`Failed to get bad actors from the database: ${e}`);
-        return;
       }
+      return;
     }
 
     if (subcommand === 'display_by_user') {
@@ -286,8 +291,8 @@ export default new Command({
       } catch (e) {
         await interaction.editReply(`Failed to get bad actors from the database.`);
         await LOGGER.error(`Failed to get bad actors from the database: ${e}`);
-        return;
       }
+      return;
     }
 
     if (subcommand === 'display_by_id') {
@@ -311,8 +316,16 @@ export default new Command({
       } catch (e) {
         await interaction.editReply(`Failed to get the bad actor from the database.`);
         await LOGGER.error(`Failed to get the bad actor from the database: ${e}`);
-        return;
       }
+      return;
+    }
+
+    if (dbUser.user_type !== 'reporter') {
+      await interaction.editReply('You are not allowed create or edit reports.');
+      await LOGGER.warn(
+        `${displayUser(interaction.user)} attempted to use /badactor ${subcommand} in ${displayGuild(interactionGuild)} but they are only a listener.`,
+      );
+      return;
     }
 
     if (subcommand === 'report') {
@@ -347,6 +360,9 @@ export default new Command({
             files: attachments,
           });
 
+          await LOGGER.warn(
+            `${displayUser(interaction.user)} attempted to use /badactor report in ${displayGuild(interactionGuild)} but the user is already reported as a bad actor.`,
+          );
           return;
         }
       } catch (e) {
@@ -435,17 +451,14 @@ export default new Command({
               } catch (e) {
                 await interaction.editReply('Failed to send the bad actor embed.');
                 await LOGGER.error(`Failed to send the bad actor embed: ${e}`);
-                return;
               }
             } catch (e) {
               await interaction.editReply('An error occured but the entry has been created.');
               await LOGGER.error(`Failed to broadcast a bad actor in the database: ${e}`);
-              return;
             }
           } catch (e) {
             await interaction.editReply(`Failed to create a bad actor in the database.`);
             await LOGGER.error(`Failed to create a bad actor in the database: ${e}`);
-            return;
           }
         } else if (buttonInteraction.customId === 'cancel') {
           await interaction.editReply({
@@ -455,6 +468,8 @@ export default new Command({
           });
         }
       });
+
+      return;
     }
 
     if (subcommand === 'deactivate') {
@@ -507,8 +522,9 @@ export default new Command({
       } catch (e) {
         await interaction.editReply(`Failed to get the bad actor from the database.`);
         await LOGGER.error(`Failed to get the bad actor from the database: ${e}`);
-        return;
       }
+
+      return;
     }
 
     if (subcommand === 'reactivate') {
@@ -561,8 +577,8 @@ export default new Command({
       } catch (e) {
         await interaction.editReply(`Failed to get the bad actor from the database.`);
         await LOGGER.error(`Failed to get the bad actor from the database: ${e}`);
-        return;
       }
+      return;
     }
 
     if (subcommand === 'add_screenshot') {
@@ -623,8 +639,8 @@ export default new Command({
       } catch (e) {
         await interaction.editReply(`Failed to get the bad actor from the database.`);
         await LOGGER.error(`Failed to get the bad actor from the database: ${e}`);
-        return;
       }
+      return;
     }
 
     if (subcommand === 'replace_screenshot') {
@@ -687,8 +703,8 @@ export default new Command({
       } catch (e) {
         await interaction.editReply(`Failed to get the bad actor from the database.`);
         await LOGGER.error(`Failed to get the bad actor from the database: ${e}`);
-        return;
       }
+      return;
     }
 
     if (subcommand === 'update_explanation') {
@@ -737,8 +753,9 @@ export default new Command({
       } catch (e) {
         await interaction.editReply(`Failed to get the bad actor from the database.`);
         await LOGGER.error(`Failed to get the bad actor from the database: ${e}`);
-        return;
       }
+
+      return;
     }
   },
 });
