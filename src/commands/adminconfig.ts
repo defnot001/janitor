@@ -245,6 +245,10 @@ function buildServerConfigEmbed(options: {
         value: dbServerConfig.ping_users ? 'Enabled' : 'Disabled',
       },
       {
+        name: 'Ping Role',
+        value: dbServerConfig.ping_role ? `<@&${dbServerConfig.ping_role}>` : 'Not set',
+      },
+      {
         name: 'Spam Action Level',
         value: displayActionLevel(dbServerConfig.spam_action_level),
       },
