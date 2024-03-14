@@ -9,16 +9,17 @@ import {
   time,
 } from 'discord.js';
 import { Command } from '../handler/classes/Command';
-import { botConfig } from '../config';
-import { AdminModelController } from '../database/model/AdminModelController';
 import { DbUser, UserModelController } from '../database/model/UserModelController';
 import { InfoEmbedBuilder } from '../util/builders';
 import { displayUserFormatted, getServerMap, getUserMap } from '../util/discord';
 import { ServerConfigModelController } from '../database/model/ServerConfigModelController';
 import { LOGGER } from '../util/logger';
+import { checkAdminInDatabase, isInteractionInAdminServer } from '../util/permission';
+
+const commandName = 'user';
 
 export default new Command({
-  name: 'user',
+  name: commandName,
   description: 'Subcommands for managing users.',
   options: [
     {
@@ -37,6 +38,22 @@ export default new Command({
           description:
             'Server(s) for bot usage, separated by commas. Admin server always included.',
           type: ApplicationCommandOptionType.String,
+          required: true,
+        },
+        {
+          name: 'user_type',
+          description: 'Wether the user can only receive reports or also create them.',
+          type: ApplicationCommandOptionType.String,
+          choices: [
+            {
+              name: 'reporter',
+              value: 'reporter',
+            },
+            {
+              name: 'listener',
+              value: 'listener',
+            },
+          ],
           required: true,
         },
       ],
@@ -90,6 +107,22 @@ export default new Command({
           type: ApplicationCommandOptionType.String,
           required: true,
         },
+        {
+          name: 'user_type',
+          description: 'Wether the user can only receive reports or also create them.',
+          type: ApplicationCommandOptionType.String,
+          choices: [
+            {
+              name: 'reporter',
+              value: 'reporter',
+            },
+            {
+              name: 'listener',
+              value: 'listener',
+            },
+          ],
+          required: true,
+        },
       ],
     },
     {
@@ -108,28 +141,8 @@ export default new Command({
   ],
   execute: async ({ interaction, args, client }) => {
     await interaction.deferReply();
-
-    try {
-      if (!(await AdminModelController.isAdmin(interaction.user.id))) {
-        await interaction.editReply('You do not have permission to use this command.');
-        await LOGGER.warn(
-          `${interaction.user.globalName ?? interaction.user.username} attempted to use /user without permission.`,
-        );
-        return;
-      }
-    } catch (e) {
-      await interaction.editReply("An error occurred while trying to get the bot's admins.");
-      await LOGGER.error(`Error getting admins from the database: ${e}`);
-      return;
-    }
-
-    if (!interaction.guild || interaction.guild.id !== botConfig.adminServerID) {
-      await interaction.editReply('This command can only be used in the admin server.');
-      await LOGGER.warn(
-        `User ${interaction.user.globalName ?? interaction.user.username} (${interaction.user.id}) tried to use /user in ${interaction.guild?.name} but it can only be used in the admin server.`,
-      );
-      return;
-    }
+    if (!(await checkAdminInDatabase({ interaction, commandName }))) return;
+    if (!(await isInteractionInAdminServer({ interaction, commandName }))) return;
 
     const subcommand = args.getSubcommand() as
       | 'list'
@@ -286,6 +299,8 @@ export default new Command({
         .split(',')
         .map((id) => id.trim());
 
+      const userType = args.getString('user_type', true) as 'reporter' | 'listener';
+
       if (serverIDs.length === 0) {
         await interaction.editReply('No server IDs provided.');
         return;
@@ -307,7 +322,11 @@ export default new Command({
         let dbUser: DbUser | null = null;
 
         try {
-          dbUser = await UserModelController.createUser({ id: user.id, servers: serverIDs });
+          dbUser = await UserModelController.createUser({
+            id: user.id,
+            servers: serverIDs,
+            user_type: userType,
+          });
         } catch (e) {
           if (
             e &&
@@ -360,6 +379,8 @@ export default new Command({
         .split(',')
         .map((id) => id.trim());
 
+      const newUserType = args.getString('user_type', true) as 'reporter' | 'listener';
+
       if (newServerIDs.length === 0) {
         await interaction.editReply('No server IDs provided.');
         return;
@@ -379,7 +400,11 @@ export default new Command({
         const checkedNewGuilds = Array.from(newGuilds.values()) as Guild[];
         const newServerNames = checkedNewGuilds.map((g) => g.name);
 
-        await UserModelController.updateUser({ id: user.id, servers: newServerIDs });
+        await UserModelController.updateUser({
+          id: user.id,
+          servers: newServerIDs,
+          user_type: newUserType,
+        });
 
         await interaction.editReply(
           `Updated User ${escapeMarkdown(user.globalName ?? user.username)} with ID ${inlineCode(user.id)} on whitelist.\nThey are allowed to use the bot in the following servers: ${newServerNames.join(', ')}`,
