@@ -3,6 +3,7 @@ import { pgClient } from '../..';
 
 export type DbUser = {
   id: Snowflake;
+  user_type: 'reporter' | 'listener';
   servers: Snowflake[];
   created_at: Date;
 };
@@ -10,11 +11,12 @@ export type DbUser = {
 export abstract class UserModelController {
   public static async createUser(createUser: {
     id: Snowflake;
+    user_type: 'reporter' | 'listener';
     servers: Snowflake[];
   }): Promise<DbUser> {
     const user = await pgClient.query<DbUser>(
-      'INSERT INTO users (id, servers) VALUES ($1, $2) RETURNING *',
-      [createUser.id, createUser.servers],
+      'INSERT INTO users (id, user_type, servers) VALUES ($1, $2, $3) RETURNING *',
+      [createUser.id, createUser.user_type, createUser.servers],
     );
 
     if (!user.rows[0]) {
@@ -32,11 +34,12 @@ export abstract class UserModelController {
 
   public static async updateUser(updateUser: {
     id: Snowflake;
+    user_type: 'reporter' | 'listener';
     servers: Snowflake[];
   }): Promise<DbUser> {
     const user = await pgClient.query<DbUser>(
-      'UPDATE users SET servers = $1 WHERE id = $2 RETURNING *',
-      [updateUser.servers, updateUser.id],
+      'UPDATE users SET user_type = $1, servers = $2 WHERE id = $3 RETURNING *',
+      [updateUser.user_type, updateUser.servers, updateUser.id],
     );
 
     if (!user.rows[0]) {
