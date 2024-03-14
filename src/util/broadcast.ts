@@ -22,7 +22,7 @@ import {
 } from '../database/model/ServerConfigModelController';
 import { UserModelController } from '../database/model/UserModelController';
 import { LOGGER } from './logger';
-import { BadActorSubcommand } from '../commands/badActor';
+import { BadActorSubcommand } from '../commands/badactor';
 import { DbBadActor } from '../database/model/BadActorModelController';
 import { BroadCastEmbedBuilder } from './builders';
 import path from 'path';
@@ -300,7 +300,11 @@ export abstract class Broadcaster {
       let messageContent = options.notificationMessage;
 
       if (serverConfig.ping_users === true) {
-        messageContent = `${serverConfig.userIDs.map((u) => userMention(u)).join(' ')}\n${options.notificationMessage}`;
+        messageContent += `\n${serverConfig.userIDs.map((u) => userMention(u)).join(' ')}`;
+      }
+
+      if (serverConfig.ping_role) {
+        messageContent += `\n<@&${serverConfig.ping_role}>`;
       }
 
       if (options.attachment !== null) {
