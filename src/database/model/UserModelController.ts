@@ -83,12 +83,4 @@ export abstract class UserModelController {
     const result = await pgClient.query('SELECT DISTINCT unnest(servers) AS server_id FROM users');
     return result.rows.map((row) => row.server_id);
   }
-
-  public static async getUserListByServer(guildID: Snowflake): Promise<DbUser[]> {
-    const users = await pgClient.query<DbUser>('SELECT * FROM users WHERE $1 = ANY(servers)', [
-      guildID,
-    ]);
-
-    return users.rows;
-  }
 }
