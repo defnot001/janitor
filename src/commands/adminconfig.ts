@@ -1,21 +1,12 @@
-import {
-  ApplicationCommandOptionType,
-  Guild,
-  Snowflake,
-  TextChannel,
-  User,
-  inlineCode,
-  time,
-} from 'discord.js';
+import { ApplicationCommandOptionType, Snowflake, User } from 'discord.js';
 import { Command } from '../handler/classes/Command';
 import {
   DbServerConfig,
   ServerConfigModelController,
-  displayActionLevel,
 } from '../database/model/ServerConfigModelController';
 import { UserModelController } from '../database/model/UserModelController';
-import { InfoEmbedBuilder } from '../util/builders';
-import { BadActorModelController, DbBadActor } from '../database/model/BadActorModelController';
+import { InfoEmbedBuilder, buildServerConfigEmbed } from '../util/builders';
+import { BadActorModelController } from '../database/model/BadActorModelController';
 import { Screenshot } from '../util/attachments';
 import { LOGGER } from '../util/logger';
 import { checkAdminInDatabase, isInteractionInAdminServer } from '../util/permission';
@@ -64,6 +55,7 @@ export default new Command({
     if (!(await isInteractionInAdminServer({ interaction, commandName }))) return;
 
     const subcommand = args.getSubcommand() as 'display_configs' | 'delete_bad_actor';
+    const commandHandler = new AdminconfigCommandHandler(interaction, client);
 
     if (subcommand === 'display_configs') {
       const serverIDs = args
@@ -78,214 +70,125 @@ export default new Command({
         return;
       }
 
-      await handleDisplayConfigs({ interaction, client, args: { serverIDs } });
+      await commandHandler.handleDisplayConfigs({ serverIDs });
       return;
     }
 
     if (subcommand === 'delete_bad_actor') {
-      const entryID = args.getInteger('id', true);
-      await handleDeleteBadActor({ interaction, client, args: { entryID } });
+      await commandHandler.handleDeleteBadActor({ entryID: args.getInteger('id', true) });
       return;
     }
   },
 });
 
-async function handleDisplayConfigs(options: {
+class AdminconfigCommandHandler {
   interaction: ExtendedInteraction;
   client: ExtendedClient;
-  args: { serverIDs: Snowflake[] };
-}): Promise<void> {
-  const { interaction, client, args } = options;
 
-  try {
-    const serverConfigs = await ServerConfigModelController.getServerConfigs(args.serverIDs);
-
-    if (!serverConfigs.length) {
-      await interaction.editReply('No server configs found for the provided server IDs.');
-      return;
-    }
-
-    const embeds = await buildEmbedsFromDbConfigs({
-      dbConfigs: serverConfigs,
-      client,
-      interaction,
-    });
-
-    await interaction.editReply({ embeds });
-  } catch (e) {
-    await interaction.editReply('An error occurred while fetching the server configs.');
-    await LOGGER.error(`An error occurred while fetching the server configs: ${e}`);
-    return;
+  public constructor(interaction: ExtendedInteraction, client: ExtendedClient) {
+    this.interaction = interaction;
+    this.client = client;
   }
-}
 
-async function handleDeleteBadActor(options: {
-  interaction: ExtendedInteraction;
-  client: ExtendedClient;
-  args: { entryID: number };
-}): Promise<void> {
-  const { interaction, client, args } = options;
-
-  try {
-    const dbEntry = await BadActorModelController.getBadActorById(args.entryID);
-
-    if (!dbEntry) {
-      await interaction.editReply('No bad actor found with the provided ID.');
-      return;
-    }
-
-    await deleteBadActor({ interaction, client, dbEntry, args });
-  } catch (e) {
-    await interaction.editReply('An error occurred while getting the bad actor from the database.');
-    await LOGGER.error(`An error occurred while getting the bad actor from the database: ${e}`);
-    return;
-  }
-}
-
-async function deleteBadActor(options: {
-  interaction: ExtendedInteraction;
-  client: ExtendedClient;
-  dbEntry: DbBadActor;
-  args: { entryID: number };
-}): Promise<void> {
-  const { interaction, client, dbEntry, args } = options;
-
-  try {
-    const deleted = await BadActorModelController.deleteBadActor(args.entryID);
-    const deletedUser = await client.users.fetch(dbEntry.user_id).catch(() => null);
-
-    if (deleted.screenshot_proof) {
-      await Screenshot.deleteFromFileSystem(deleted.screenshot_proof);
-    }
-
-    await interaction.editReply(
-      `Bad actor with ${deletedUser ? displayUserFormatted(deletedUser) : dbEntry.user_id} has been deleted from the database.`,
-    );
-
-    LOGGER.info(
-      `${displayUser(interaction.user)} deleted bad actor ${deletedUser ? displayUserFormatted(deletedUser) : dbEntry.user_id} from the database.`,
-    );
-  } catch (e) {
-    await interaction.editReply('An error occurred while deleting the user from the database.');
-    await LOGGER.error(`An error occurred while deleting the user from the database: ${e}`);
-  }
-}
-
-async function buildEmbedsFromDbConfigs(options: {
-  dbConfigs: DbServerConfig[];
-  client: ExtendedClient;
-  interaction: ExtendedInteraction;
-}): Promise<InfoEmbedBuilder[]> {
-  const { dbConfigs, client, interaction } = options;
-
-  const embeds: InfoEmbedBuilder[] = [];
-
-  for (const dbServerConfig of dbConfigs) {
+  public async handleDisplayConfigs(args: { serverIDs: Snowflake[] }): Promise<void> {
     try {
-      const guild = await client.guilds.fetch(dbServerConfig.server_id);
-      const configGuildDbUsers = await UserModelController.getUsersByServer(guild.id);
-      const logChannel = dbServerConfig.log_channel
-        ? await getTextChannelByID(client, dbServerConfig.log_channel)
-        : null;
-      const users = await getUserMap(
-        configGuildDbUsers.map((user) => user.id),
-        client,
-      );
+      const serverConfigs = await ServerConfigModelController.getServerConfigs(args.serverIDs);
 
-      const usersWithoutNull = Array.from(users.values()).filter((user) => user !== null) as User[];
+      if (!serverConfigs.length) {
+        await this.interaction.editReply('No server configs found for the provided server IDs.');
+        return;
+      }
 
-      const embed = buildServerConfigEmbed({
-        guild,
-        interaction,
-        users: usersWithoutNull,
-        logChannel,
-        dbServerConfig,
-      });
-
-      embeds.push(embed);
+      const embeds = await this.buildEmbedsFromDbConfigs(serverConfigs);
+      await this.interaction.editReply({ embeds });
     } catch (e) {
-      await LOGGER.error(
-        `An error occurred while fetching information to build a server config embed for ${dbServerConfig.server_id}: ${e}`,
-      );
-      await interaction.followUp(
-        `Failed to fetch information to build a server config embed for server ID ${dbServerConfig.server_id}.`,
-      );
+      await this.interaction.editReply('An error occurred while fetching the server configs.');
+      await LOGGER.error(`An error occurred while fetching the server configs: ${e}`);
+      return;
     }
   }
 
-  return embeds;
-}
+  public async handleDeleteBadActor(args: { entryID: number }): Promise<void> {
+    try {
+      const dbEntry = await BadActorModelController.getBadActorById(args.entryID);
 
-function buildServerConfigEmbed(options: {
-  interaction: ExtendedInteraction;
-  guild: Guild;
-  users: User[];
-  dbServerConfig: DbServerConfig;
-  logChannel: TextChannel | null;
-}): InfoEmbedBuilder {
-  const { interaction, guild, users, dbServerConfig, logChannel } = options;
+      if (!dbEntry) {
+        await this.interaction.editReply('No bad actor found with the provided ID.');
+        return;
+      }
 
-  const embed = new InfoEmbedBuilder(interaction.user, {
-    title: `Server Config for ${guild.name}`,
-    fields: [
-      {
-        name: 'Server ID',
-        value: inlineCode(guild.id),
-      },
-      {
-        name: 'Whitelisted Admins',
-        value: users.map((user) => displayUserFormatted(user)).join('\n'),
-      },
-      {
-        name: 'Log Channel',
-        value: logChannel ? `${logChannel.name} (${inlineCode(logChannel.id)})` : 'Not set',
-      },
-      {
-        name: 'Ping Admins',
-        value: dbServerConfig.ping_users ? 'Enabled' : 'Disabled',
-      },
-      {
-        name: 'Ping Role',
-        value: dbServerConfig.ping_role ? `<@&${dbServerConfig.ping_role}>` : 'Not set',
-      },
-      {
-        name: 'Spam Action Level',
-        value: displayActionLevel(dbServerConfig.spam_action_level),
-      },
-      {
-        name: 'Impersonation Action Level',
-        value: displayActionLevel(dbServerConfig.impersonation_action_level),
-      },
-      {
-        name: 'Bigotry Action Level',
-        value: displayActionLevel(dbServerConfig.bigotry_action_level),
-      },
-      {
-        name: 'Timeout Users With Role',
-        value: dbServerConfig.timeout_users_with_role ? 'Enabled' : 'Disabled',
-      },
-      {
-        name: 'Ignored Roles',
-        value: dbServerConfig.ignored_roles.length
-          ? dbServerConfig.ignored_roles.map((role) => `<@&${role}>`).join(', ')
-          : 'None',
-      },
-      {
-        name: 'Created At',
-        value: `${time(new Date(dbServerConfig.created_at), 'D')}\n(${time(new Date(dbServerConfig.created_at), 'R')})`,
-        inline: true,
-      },
-      {
-        name: 'Updated At',
-        value: `${time(new Date(dbServerConfig.updated_at), 'D')}\n(${time(new Date(dbServerConfig.updated_at), 'R')})`,
-        inline: true,
-      },
-    ],
-  });
-
-  if (guild.iconURL()) {
-    embed.setThumbnail(guild.iconURL());
+      await this.deleteBadActor({ entryID: args.entryID });
+    } catch (e) {
+      await this.interaction.editReply(
+        'An error occurred while getting the bad actor from the database.',
+      );
+      await LOGGER.error(`An error occurred while getting the bad actor from the database: ${e}`);
+      return;
+    }
   }
 
-  return embed;
+  private async buildEmbedsFromDbConfigs(dbConfigs: DbServerConfig[]): Promise<InfoEmbedBuilder[]> {
+    const embeds: InfoEmbedBuilder[] = [];
+
+    for (const dbServerConfig of dbConfigs) {
+      try {
+        const guild = await this.client.guilds.fetch(dbServerConfig.server_id);
+        const configGuildDbUsers = await UserModelController.getUsersByServer(guild.id);
+        const logChannel = dbServerConfig.log_channel
+          ? await getTextChannelByID(this.client, dbServerConfig.log_channel)
+          : null;
+        const users = await getUserMap(
+          configGuildDbUsers.map((user) => user.id),
+          this.client,
+        );
+
+        const usersWithoutNull = Array.from(users.values()).filter(
+          (user) => user !== null,
+        ) as User[];
+
+        const embed = buildServerConfigEmbed({
+          interaction: this.interaction,
+          users: usersWithoutNull,
+          guild,
+          logChannel,
+          dbServerConfig,
+        });
+
+        embeds.push(embed);
+      } catch (e) {
+        await LOGGER.error(
+          `An error occurred while fetching information to build a server config embed for ${dbServerConfig.server_id}: ${e}`,
+        );
+        await this.interaction.followUp(
+          `Failed to fetch information to build a server config embed for server ID ${dbServerConfig.server_id}.`,
+        );
+      }
+    }
+
+    return embeds;
+  }
+
+  private async deleteBadActor(args: { entryID: number }): Promise<void> {
+    try {
+      const deleted = await BadActorModelController.deleteBadActor(args.entryID);
+      const deletedUser = await this.client.users.fetch(deleted.user_id).catch(() => null);
+
+      if (deleted.screenshot_proof) {
+        await Screenshot.deleteFromFileSystem(deleted.screenshot_proof);
+      }
+
+      await this.interaction.editReply(
+        `Bad actor with ${deletedUser ? displayUserFormatted(deletedUser) : deleted.user_id} has been deleted from the database.`,
+      );
+
+      LOGGER.info(
+        `${displayUser(this.interaction.user)} deleted bad actor ${deletedUser ? displayUserFormatted(deletedUser) : deleted.user_id} from the database.`,
+      );
+    } catch (e) {
+      await this.interaction.editReply(
+        'An error occurred while deleting the user from the database.',
+      );
+      await LOGGER.error(`An error occurred while deleting the user from the database: ${e}`);
+    }
+  }
 }
