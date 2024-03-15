@@ -4,6 +4,8 @@ import { InfoEmbedBuilder } from '../util/builders';
 import { LOGGER } from '../util/logger';
 import { checkUserInDatabase } from '../util/permission';
 import { displayUserFormatted } from '../util/discord';
+import { ExtendedInteraction } from '../handler/types';
+import { ExtendedClient } from '../handler/classes/ExtendedClient';
 
 const commandName = 'adminlist';
 
@@ -14,25 +16,29 @@ export default new Command({
     await interaction.deferReply();
     if (!(await checkUserInDatabase({ interaction, commandName }))) return;
 
-    try {
-      const admins = await AdminModelController.getAllAdmins();
-
-      const adminEntries = await Promise.all(
-        admins.map(async (a) => {
-          const user = await client.users.fetch(a.id);
-          return displayUserFormatted(user);
-        }),
-      );
-
-      const adminEmbed = new InfoEmbedBuilder(interaction.user, {
-        title: 'Admin List',
-        description: adminEntries.join('\n'),
-      });
-
-      await interaction.editReply({ embeds: [adminEmbed] });
-    } catch (e) {
-      await LOGGER.error(`Error fetching admins: ${e}`);
-      await interaction.editReply('Error fetching admins.');
-    }
+    await handleAdminList(interaction, client);
   },
 });
+
+async function handleAdminList(interaction: ExtendedInteraction, client: ExtendedClient) {
+  try {
+    const admins = await AdminModelController.getAllAdmins();
+
+    const adminEntries = await Promise.all(
+      admins.map(async (a) => {
+        const user = await client.users.fetch(a.id);
+        return displayUserFormatted(user);
+      }),
+    );
+
+    const adminEmbed = new InfoEmbedBuilder(interaction.user, {
+      title: 'Admin List',
+      description: adminEntries.join('\n'),
+    });
+
+    await interaction.editReply({ embeds: [adminEmbed] });
+  } catch (e) {
+    await LOGGER.error(`Error fetching admins: ${e}`);
+    await interaction.editReply('Error fetching admins.');
+  }
+}
