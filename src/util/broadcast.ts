@@ -22,7 +22,7 @@ import {
 } from '../database/model/ServerConfigModelController';
 import { UserModelController } from '../database/model/UserModelController';
 import { LOGGER } from './logger';
-import { BadActorSubcommand } from '../commands/badactor';
+import { BadActorSubcommand } from '../commands/badActor';
 import { DbBadActor } from '../database/model/BadActorModelController';
 import { BroadCastEmbedBuilder } from './builders';
 import path from 'path';
@@ -337,7 +337,7 @@ export abstract class Broadcaster {
       }
 
       try {
-        const users = await UserModelController.getUserListByServer(config.server_id);
+        const users = await UserModelController.getUsersByServer(config.server_id);
         const serverconfig: ServerConfig = { ...config, userIDs: users.map((user) => user.id) };
         configMap.set(config.server_id, serverconfig);
       } catch (e) {
