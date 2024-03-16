@@ -1,9 +1,11 @@
 import { Snowflake } from 'discord.js';
 import { pgClient } from '../..';
 
+export type UserType = 'reporter' | 'listener';
+
 export type DbUser = {
   id: Snowflake;
-  user_type: 'reporter' | 'listener';
+  user_type: UserType;
   servers: Snowflake[];
   created_at: Date;
 };
@@ -11,7 +13,7 @@ export type DbUser = {
 export abstract class UserModelController {
   public static async createUser(createUser: {
     id: Snowflake;
-    user_type: 'reporter' | 'listener';
+    user_type: UserType;
     servers: Snowflake[];
   }): Promise<DbUser> {
     const user = await pgClient.query<DbUser>(
@@ -34,7 +36,7 @@ export abstract class UserModelController {
 
   public static async updateUser(updateUser: {
     id: Snowflake;
-    user_type: 'reporter' | 'listener';
+    user_type: UserType;
     servers: Snowflake[];
   }): Promise<DbUser> {
     const user = await pgClient.query<DbUser>(
