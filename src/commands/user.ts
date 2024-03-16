@@ -1,20 +1,27 @@
 import {
   ApplicationCommandOptionType,
-  Client,
+  CommandInteractionOptionResolver,
   Guild,
   Snowflake,
   User,
-  escapeMarkdown,
   inlineCode,
   time,
 } from 'discord.js';
 import { Command } from '../handler/classes/Command';
-import { DbUser, UserModelController } from '../database/model/UserModelController';
+import { DbUser, UserModelController, UserType } from '../database/model/UserModelController';
 import { InfoEmbedBuilder } from '../util/builders';
-import { displayUserFormatted, getServerMap, getUserMap } from '../util/discord';
+import {
+  displayGuild,
+  displayGuildFormatted,
+  displayUserFormatted,
+  getGuildMap,
+  getUserMap,
+} from '../util/discord';
 import { ServerConfigModelController } from '../database/model/ServerConfigModelController';
 import { LOGGER } from '../util/logger';
 import { checkAdminInDatabase, isInteractionInAdminServer } from '../util/permission';
+import { ExtendedInteraction } from '../handler/types';
+import { ExtendedClient } from '../handler/classes/ExtendedClient';
 
 const commandName = 'user';
 
@@ -144,6 +151,8 @@ export default new Command({
     if (!(await checkAdminInDatabase({ interaction, commandName }))) return;
     if (!(await isInteractionInAdminServer({ interaction, commandName }))) return;
 
+    const commandHandler = new UserCommandHandler(interaction, client);
+
     const subcommand = args.getSubcommand() as
       | 'list'
       | 'list_by_server'
@@ -153,85 +162,12 @@ export default new Command({
       | 'remove';
 
     if (subcommand === 'list') {
-      try {
-        const users = await UserModelController.getAllUsers();
-        const uniqueServerIDs = await UserModelController.getUniqueServerIDs();
-
-        if (users.length === 0) {
-          await interaction.editReply('No users found.');
-          return;
-        }
-
-        const serverMap = await getServerMap(uniqueServerIDs, client);
-        const userMap = await getUserMap(
-          users.map((user) => user.id),
-          client,
-        );
-
-        const userEntries = users.map((user) => {
-          const serverNames = user.servers.map((serverID) => serverMap.get(serverID));
-          return `${userMap.get(user.id)} (${inlineCode(user.id)}):\n${serverNames.join(', ')}`;
-        });
-
-        const listEmbed = new InfoEmbedBuilder(interaction.user, {
-          title: 'Whitelisted Users',
-          description: userEntries.join('\n\n'),
-        });
-
-        await interaction.editReply({ embeds: [listEmbed] });
-      } catch (e) {
-        await LOGGER.error(`Error getting all users: ${e}`);
-        await interaction.editReply('An error occurred while getting all users.');
-        return;
-      }
-
+      await commandHandler.handleUserList();
       return;
     }
 
     if (subcommand === 'list_by_server') {
-      const serverID = args.getString('server_id', true);
-      let server;
-
-      try {
-        server = await client.guilds.fetch(serverID);
-      } catch (e) {
-        await LOGGER.error(`Error fetching server: ${e}`);
-        await interaction.editReply('An error occurred while fetching the server.');
-        return;
-      }
-
-      if (!server) {
-        await interaction.editReply('Server not found.');
-        return;
-      }
-
-      try {
-        const users = await UserModelController.getUsersByServer(serverID);
-
-        if (users.length === 0) {
-          await interaction.editReply('No users found.');
-          return;
-        }
-
-        const userMap = await getUserMap(
-          users.map((user) => user.id),
-          client,
-        );
-
-        const userEntries = users.map((user) => `${userMap.get(user.id)} (${inlineCode(user.id)})`);
-
-        const listEmbed = new InfoEmbedBuilder(interaction.user, {
-          title: `Whitelisted Users for ${server.name}`,
-          description: userEntries.join('\n'),
-        });
-
-        await interaction.editReply({ embeds: [listEmbed] });
-      } catch (e) {
-        await LOGGER.error(`Error getting users by server: ${e}`);
-        await interaction.editReply('An error occurred while getting users by server.');
-        return;
-      }
-
+      await commandHandler.handleUserListByServer({ guildID: args.getString('server_id', true) });
       return;
     }
 
@@ -243,298 +179,428 @@ export default new Command({
     }
 
     if (subcommand === 'info') {
-      try {
-        const dbUser = await UserModelController.getUser(user.id);
-
-        if (!dbUser) {
-          await interaction.editReply(
-            `User ${escapeMarkdown(user.globalName ?? user.username)} with ID ${inlineCode(user.id)} is not on the whitelist.`,
-          );
-          return;
-        }
-
-        const guilds = await fetchGuilds(dbUser.servers, client);
-
-        if (hasFailedGuildFetches(guilds)) {
-          const failedFetches = getFailedGuildFetches(guilds);
-          await interaction.editReply(
-            `Failed to fetch the following servers: ${failedFetches.map((id) => inlineCode(id)).join(', ')}. Either the bot is not in these servers or the IDs are incorrect.`,
-          );
-          return;
-        }
-
-        const checkedGuilds = Array.from(guilds.values()) as Guild[];
-
-        const serverNames = checkedGuilds.map((g) => g.name);
-
-        const infoEmbed = new InfoEmbedBuilder(interaction.user, {
-          title: `User Info for ${escapeMarkdown(user.globalName ?? user.username)}`,
-          fields: [
-            {
-              name: 'ID',
-              value: inlineCode(dbUser.id),
-            },
-            {
-              name: 'Servers',
-              value: serverNames.join(', '),
-            },
-            {
-              name: 'Created At',
-              value: `${time(dbUser.created_at, 'D')}\n(${time(dbUser.created_at, 'R')})`,
-            },
-          ],
-        });
-
-        await interaction.editReply({ embeds: [infoEmbed] });
-      } catch (e) {
-        await LOGGER.error(`Error getting user information: ${e}`);
-        await interaction.editReply('An error occurred while getting user information.');
-        return;
-      }
+      await commandHandler.handleUserInfo({ user });
+      return;
     }
 
     if (subcommand === 'add') {
-      const serverIDs = args
-        .getString('server_id', true)
-        .split(',')
-        .map((id) => id.trim());
+      const options = await commandHandler.getAddUpdateOptions(args);
+      if (!options) return;
 
-      const userType = args.getString('user_type', true) as 'reporter' | 'listener';
-
-      if (serverIDs.length === 0) {
-        await interaction.editReply('No server IDs provided.');
-        return;
-      }
-
-      try {
-        const guilds = await fetchGuilds(serverIDs, client);
-
-        if (hasFailedGuildFetches(guilds)) {
-          const failedFetches = getFailedGuildFetches(guilds);
-          await interaction.editReply(
-            `Failed to fetch the following servers: ${failedFetches.map((id) => inlineCode(id)).join(', ')}. Either the bot is not in these servers or the IDs are incorrect.`,
-          );
-          return;
-        }
-
-        const checkedGuilds = Array.from(guilds.values()) as Guild[];
-
-        let dbUser: DbUser | null = null;
-
-        try {
-          dbUser = await UserModelController.createUser({
-            id: user.id,
-            servers: serverIDs,
-            user_type: userType,
-          });
-        } catch (e) {
-          if (
-            e &&
-            e !== null &&
-            typeof e === 'object' &&
-            'message' in e &&
-            typeof e.message === 'string' &&
-            e.message.includes('duplicate key value violates unique constraint "users_pkey"')
-          ) {
-            await interaction.editReply(
-              `User ${displayUserFormatted(user)} is already on the whitelist.`,
-            );
-          }
-        }
-
-        if (!dbUser) {
-          return;
-        }
-
-        const serverNames = checkedGuilds.map((g) => g.name);
-
-        await interaction.editReply(
-          `Added User ${escapeMarkdown(user.globalName ?? user.username)} with ID ${inlineCode(user.id)} to whitelist.\nThey are allowed to use the bot in the following servers: ${serverNames.join(', ')}`,
-        );
-
-        for await (const guild of checkedGuilds) {
-          const created = await ServerConfigModelController.createServerConfigIfNotExists(guild.id);
-
-          if (created) {
-            LOGGER.info(`Created empty server config for server ${guild.name} (${guild.id})`);
-            await interaction.followUp(
-              `Created empty server config for server ${escapeMarkdown(guild.name)} (${inlineCode(guild.id)})`,
-            );
-          } else {
-            LOGGER.debug(
-              `Server config already exists for server ${guild.name} (${guild.id}). Skipping creation.`,
-            );
-          }
-        }
-      } catch (e) {
-        await LOGGER.error(`Error adding user to whitelist: ${e}`);
-        await interaction.editReply('An error occurred while adding the user to the whitelist.');
-        return;
-      }
+      const { guildIDs, userType } = options;
+      await commandHandler.handleUserAdd({ user, userType, guildIDs });
+      return;
     }
 
     if (subcommand === 'update') {
-      const newServerIDs = args
-        .getString('server_id', true)
-        .split(',')
-        .map((id) => id.trim());
+      const options = await commandHandler.getAddUpdateOptions(args);
+      if (!options) return;
 
-      const newUserType = args.getString('user_type', true) as 'reporter' | 'listener';
-
-      if (newServerIDs.length === 0) {
-        await interaction.editReply('No server IDs provided.');
-        return;
-      }
-
-      try {
-        const newGuilds = await fetchGuilds(newServerIDs, client);
-
-        if (hasFailedGuildFetches(newGuilds)) {
-          const failedFetches = getFailedGuildFetches(newGuilds);
-          await interaction.editReply(
-            `Failed to fetch the following servers: ${failedFetches.map((id) => inlineCode(id)).join(', ')}`,
-          );
-          return;
-        }
-
-        const checkedNewGuilds = Array.from(newGuilds.values()) as Guild[];
-        const newServerNames = checkedNewGuilds.map((g) => g.name);
-
-        await UserModelController.updateUser({
-          id: user.id,
-          servers: newServerIDs,
-          user_type: newUserType,
-        });
-
-        await interaction.editReply(
-          `Updated User ${escapeMarkdown(user.globalName ?? user.username)} with ID ${inlineCode(user.id)} on whitelist.\nThey are allowed to use the bot in the following servers: ${newServerNames.join(', ')}`,
-        );
-      } catch (e) {
-        await LOGGER.error(`Error updating user on whitelist: ${e}`);
-        await interaction.editReply('An error occurred while updating the user on the whitelist.');
-        return;
-      }
-
-      try {
-        await handleServerConfigUpdates(user, newServerIDs);
-      } catch (e) {
-        await LOGGER.error(`Error updating server configs: ${e}`);
-        await interaction.followUp('An error occurred while updating server configs.');
-        return;
-      }
+      const { guildIDs, userType } = options;
+      await commandHandler.handleUserUpdate({ user, userType, guildIDs });
+      return;
     }
 
     if (subcommand === 'remove') {
-      try {
-        const dbUser = await UserModelController.deleteUser(user.id);
-
-        await interaction.editReply(
-          `Removed User ${escapeMarkdown(user.globalName ?? user.username)} with ID ${inlineCode(dbUser.id)} from whitelist.`,
-        );
-
-        if (dbUser.servers.length === 0) {
-          return;
-        }
-
-        const guilds = await fetchGuilds(dbUser.servers, client);
-
-        if (hasFailedGuildFetches(guilds)) {
-          const failedFetches = getFailedGuildFetches(guilds);
-          await interaction.followUp(
-            `Failed to fetch the following servers: ${failedFetches.map((id) => inlineCode(id)).join(', ')}`,
-          );
-          return;
-        }
-
-        const checkedGuilds = Array.from(guilds.values()) as Guild[];
-
-        for await (const guild of checkedGuilds) {
-          const deleted = await ServerConfigModelController.deleteServerConfigIfNeeded(guild.id);
-
-          if (deleted) {
-            LOGGER.info(
-              `Deleted server config for server ${guild.name} (${guild.id}) because it's no longer in use.`,
-            );
-            await interaction.followUp(
-              `Deleted server config for server ${escapeMarkdown(guild.name)} (${inlineCode(guild.id)}) because it's no longer in use.`,
-            );
-          } else {
-            LOGGER.debug(
-              `Server config for server ${guild.name} (${guild.id}) still in use. Skipping deletion.`,
-            );
-          }
-        }
-      } catch (e) {
-        await LOGGER.error(`Error removing user from whitelist: ${e}`);
-        await interaction.editReply(
-          'An error occurred while removing the user from the whitelist.',
-        );
-        return;
-      }
+      await commandHandler.handleUserDelete({ user });
+      return;
     }
   },
 });
 
-async function fetchGuilds(
-  ids: Snowflake[],
-  client: Client,
-): Promise<Map<Snowflake, Guild | null>> {
-  LOGGER.debug(`Fetching guilds: ${ids.join(', ')}`);
+class UserCommandHandler {
+  private readonly interaction: ExtendedInteraction;
+  private readonly client: ExtendedClient;
 
-  const guildMap = new Map<Snowflake, Guild | null>();
+  public constructor(interaction: ExtendedInteraction, client: ExtendedClient) {
+    this.interaction = interaction;
+    this.client = client;
+  }
 
-  for await (const id of ids) {
-    const guild = await client.guilds.fetch(id).catch(async () => {
-      await LOGGER.warn(`Failed to fetch guild ${id}`);
+  public async getAddUpdateOptions(
+    args: CommandInteractionOptionResolver,
+  ): Promise<AddUpdateOptions | null> {
+    const guildIDs = args
+      .getString('server_id', true)
+      .split(',')
+      .map((id) => id.trim());
+
+    const userType = args.getString('user_type', true) as UserType;
+
+    if (guildIDs.length === 0) {
+      await this.interaction.editReply('No server IDs provided.');
+      return null;
+    }
+
+    return { guildIDs, userType };
+  }
+
+  public async handleUserList() {
+    const allUsers = await this.getAllUsers();
+    if (allUsers === null) return;
+
+    const uniqueServerIDs = await this.getUniqueServerIDs();
+    if (uniqueServerIDs === null) return;
+
+    const userMap = await getUserMap(
+      allUsers.map((u) => u.id),
+      this.client,
+    );
+
+    const guildMap = await getGuildMap(uniqueServerIDs, this.client);
+    const userEntries = this.createUserEntries(allUsers, userMap, guildMap);
+
+    const listEmbed = new InfoEmbedBuilder(this.interaction.user, {
+      title: 'Whitelisted Users',
+      description: userEntries.join('\n\n'),
+    });
+
+    await this.interaction.editReply({ embeds: [listEmbed] });
+  }
+
+  public async handleUserListByServer(args: { guildID: Snowflake }) {
+    const guild = await this.client.guilds.fetch(args.guildID).catch(async (e) => {
+      await LOGGER.error(`Error fetching guild: ${e}`);
       return null;
     });
-    guildMap.set(id, guild);
+
+    if (!guild) {
+      await this.interaction.editReply(
+        `Server ${inlineCode(args.guildID)} not found. The bot may not be in this server.`,
+      );
+      return;
+    }
+
+    const dbUsers = await UserModelController.getUsersByServer(args.guildID).catch(async (e) => {
+      await LOGGER.error(`Error fetching users by server: ${e}`);
+      return null;
+    });
+
+    if (!dbUsers) {
+      await this.interaction.editReply(
+        `Error fetching users for server ${displayGuildFormatted(guild)}`,
+      );
+      return;
+    }
+
+    const dbUserIDs = dbUsers.map((u) => u.id);
+    const userMap = await getUserMap(dbUserIDs, this.client);
+
+    const userEntries = dbUserIDs.map((id) => {
+      const maybeUser = userMap.get(id) ?? null;
+      return maybeUser ? displayUserFormatted(maybeUser) : inlineCode(id);
+    });
+
+    const listEmbed = new InfoEmbedBuilder(this.interaction.user, {
+      title: `Whitelisted Users for ${displayGuildFormatted(guild)}`,
+      description: userEntries.join('\n'),
+    });
+
+    await this.interaction.editReply({ embeds: [listEmbed] });
   }
 
-  return guildMap;
-}
+  public async handleUserInfo(args: { user: User }) {
+    const dbUser = await UserModelController.getUser(args.user.id).catch(async (e) => {
+      await LOGGER.error(`Error fetching user from the database: ${e}`);
+      return null;
+    });
 
-function hasFailedGuildFetches(guildMap: Map<Snowflake, Guild | null>): boolean {
-  for (const guild of guildMap.values()) {
-    if (!guild) {
-      return true;
+    if (!dbUser) {
+      await this.interaction.editReply(
+        `User ${displayUserFormatted(args.user)} is not on the whitelist.`,
+      );
+      return;
+    }
+
+    const userGuildsMap = await getGuildMap(dbUser.servers, this.client);
+
+    const displayGuilds = dbUser.servers.map((guildID) => {
+      const userGuild = userGuildsMap.get(guildID) ?? null;
+      return userGuild ? displayGuildFormatted(userGuild) : inlineCode(guildID);
+    });
+
+    const infoEmbed = this.createUserEmbed({
+      dbUser,
+      user: args.user,
+      displayGuilds,
+    });
+
+    await this.interaction.editReply({ embeds: [infoEmbed] });
+  }
+
+  public async handleUserAdd(args: { user: User; userType: UserType; guildIDs: Snowflake[] }) {
+    const userGuildsMap = await getGuildMap(args.guildIDs, this.client);
+    const checkedGuildMap = await this.checkGuildMap(userGuildsMap);
+    if (!checkedGuildMap) return;
+
+    const createdUser = await UserModelController.createUser({
+      id: args.user.id,
+      servers: args.guildIDs,
+      user_type: args.userType,
+    }).catch(async (e) => {
+      await this.handleCreateUserError(e);
+      return null;
+    });
+
+    if (!createdUser) return;
+
+    const displayGuilds = args.guildIDs
+      // we can safely assume that the guilds are in the map since we checked it
+      .map((guildID) => displayGuildFormatted(checkedGuildMap.get(guildID)!));
+
+    const infoEmbed = this.createUserEmbed({
+      dbUser: createdUser,
+      user: args.user,
+      displayGuilds,
+    });
+
+    await this.interaction.editReply({
+      content: `Successfully added user to the database.`,
+      embeds: [infoEmbed],
+    });
+
+    try {
+      await this.handleServerConfigUpdates({ dbUser: createdUser, newServerIDs: args.guildIDs });
+    } catch (e) {
+      await LOGGER.error(`Error updating server configs: ${e}`);
+      await this.interaction.followUp('An error occurred while updating server configs.');
+      return;
     }
   }
 
-  return false;
-}
+  public async handleUserUpdate(args: { user: User; userType: UserType; guildIDs: Snowflake[] }) {
+    const userGuildsMap = await getGuildMap(args.guildIDs, this.client);
+    const checkedGuildMap = await this.checkGuildMap(userGuildsMap);
+    if (!checkedGuildMap) return;
 
-function getFailedGuildFetches(guildMap: Map<Snowflake, Guild | null>): Snowflake[] {
-  const failedFetches = [];
+    const updatedUser = await UserModelController.updateUser({
+      id: args.user.id,
+      servers: args.guildIDs,
+      user_type: args.userType,
+    }).catch(async (e) => {
+      await LOGGER.error(`Error updating user on whitelist: ${e}`);
+      await this.interaction.editReply(
+        'An error occurred while updating the user on the whitelist.',
+      );
+      return null;
+    });
 
-  for (const [id, guild] of guildMap) {
-    if (!guild) {
-      failedFetches.push(id);
+    if (!updatedUser) return;
+
+    const displayGuilds = args.guildIDs
+      // we can safely assume that the guilds are in the map since we checked it
+      .map((guildID) => displayGuildFormatted(checkedGuildMap.get(guildID)!));
+
+    const infoEmbed = this.createUserEmbed({
+      dbUser: updatedUser,
+      user: args.user,
+      displayGuilds,
+    });
+
+    await this.interaction.editReply({
+      content: `Successfully updated user in the database.`,
+      embeds: [infoEmbed],
+    });
+
+    try {
+      await this.handleServerConfigUpdates({ dbUser: updatedUser, newServerIDs: args.guildIDs });
+    } catch (e) {
+      await LOGGER.error(`Error updating server configs: ${e}`);
+      await this.interaction.followUp('An error occurred while updating server configs.');
+      return;
     }
   }
 
-  return failedFetches;
-}
+  public async handleUserDelete(args: { user: User }) {
+    let deletedUser: DbUser | null = null;
 
-async function handleServerConfigUpdates(user: User, newServerIDs: Snowflake[]) {
-  const currentUserData = await UserModelController.getUser(user.id);
-  if (!currentUserData) {
-    throw new Error(`User ${user.id} not found.`);
+    try {
+      deletedUser = await UserModelController.deleteUser(args.user.id);
+    } catch (e) {
+      await LOGGER.error(`Error deleting user from whitelist: ${e}`);
+    }
+
+    if (!deletedUser) {
+      await this.interaction.editReply(
+        'An error occurred while removing the user from the whitelist.',
+      );
+      return;
+    }
+
+    // this should never happen, but just in case
+    if (deletedUser.servers.length === 0) {
+      await this.interaction.editReply(
+        `Removed User ${displayUserFormatted(args.user)} from whitelist.`,
+      );
+      return;
+    }
+
+    try {
+      await this.handleServerConfigUpdates({ dbUser: deletedUser, newServerIDs: [] });
+    } catch (e) {
+      await LOGGER.error(`Error updating server configs: ${e}`);
+      await this.interaction.followUp('An error occurred while updating server configs.');
+    }
   }
 
-  const { servers: oldServerIDs } = currentUserData;
-  const serversToAdd = newServerIDs.filter((id) => !oldServerIDs.includes(id));
-  const serversToRemove = oldServerIDs.filter((id) => !newServerIDs.includes(id));
+  private async getAllUsers(): Promise<DbUser[] | null> {
+    let allUsers: DbUser[] | null = null;
 
-  await Promise.all(
-    serversToAdd.map((serverID) =>
-      ServerConfigModelController.createServerConfigIfNotExists(serverID),
-    ),
-  );
+    try {
+      allUsers = await UserModelController.getAllUsers();
+    } catch (e) {
+      await LOGGER.error(`Error fetching all users from the database: ${e}`);
+      await this.interaction.editReply('Error fetching all users from the database.');
+    }
 
-  await Promise.all(
-    serversToRemove.map((serverID) =>
-      ServerConfigModelController.deleteServerConfigIfNeeded(serverID),
-    ),
-  );
+    if (allUsers === null || allUsers.length === 0) {
+      await this.interaction.editReply('No users found.');
+      return null;
+    }
+
+    return allUsers;
+  }
+
+  private async getUniqueServerIDs(): Promise<Snowflake[] | null> {
+    let uniqueServerIDs: Snowflake[] | null = null;
+
+    try {
+      uniqueServerIDs = await UserModelController.getUniqueServerIDs();
+    } catch (e) {
+      await LOGGER.error(`Error fetching all unique server IDs from the database: ${e}`);
+      await this.interaction.editReply('Error fetching all server IDs from the database.');
+    }
+
+    return uniqueServerIDs;
+  }
+
+  private createUserEntries(
+    dbUsers: DbUser[],
+    userMap: Map<Snowflake, User | null>,
+    guildMap: Map<Snowflake, Guild | null>,
+  ) {
+    const entries: string[] = [];
+
+    for (const dbUser of dbUsers) {
+      const { id, servers } = dbUser;
+
+      const user = userMap.get(id) ?? null;
+      const guilds = servers.map((guildID) => guildMap.get(guildID) ?? guildID);
+
+      const displayUser = user ? displayUserFormatted(user) : inlineCode(id);
+      const displayGuilds = guilds
+        .map((guild) =>
+          typeof guild === 'string' ? inlineCode(guild) : displayGuildFormatted(guild),
+        )
+        .join(', ');
+
+      entries.push(`${displayUser}\n${displayGuilds}`);
+    }
+
+    return entries;
+  }
+
+  private createUserEmbed(options: { user: User; dbUser: DbUser; displayGuilds: string[] }) {
+    return new InfoEmbedBuilder(this.interaction.user, {
+      title: `User Info for ${displayUserFormatted(options.user)}`,
+      fields: [
+        {
+          name: 'Servers',
+          value: options.displayGuilds.join('\n'),
+        },
+        {
+          name: 'Created At',
+          value: `${time(options.dbUser.created_at, 'D')}\n(${time(options.dbUser.created_at, 'R')})`,
+        },
+      ],
+    });
+  }
+
+  private async checkGuildMap(
+    guildMap: Map<Snowflake, Guild | null>,
+  ): Promise<Map<Snowflake, Guild> | null> {
+    const failedGuilds = Array.from(guildMap.entries())
+      .filter(([, guild]) => guild === null)
+      .map(([guildID]) => guildID);
+
+    if (failedGuilds.length > 0) {
+      await this.interaction.editReply(
+        `Failed to fetch the following servers: ${failedGuilds.map((id) => inlineCode(id)).join(', ')}. Either the bot is not in these servers or the IDs are incorrect.`,
+      );
+      return null;
+    }
+
+    return guildMap as Map<Snowflake, Guild>;
+  }
+
+  private async handleCreateUserError(e: unknown) {
+    if (
+      e &&
+      e !== null &&
+      typeof e === 'object' &&
+      'message' in e &&
+      typeof e.message === 'string' &&
+      e.message.includes('duplicate key value violates unique constraint "users_pkey"')
+    ) {
+      this.interaction.editReply('User is already on the whitelist.');
+      await LOGGER.warn('User is already on the whitelist.');
+    } else {
+      this.interaction.editReply('An error occurred while adding the user to the whitelist.');
+      await LOGGER.error(`Error adding user to whitelist: ${e}`);
+    }
+  }
+
+  private async handleServerConfigUpdates(options: { dbUser: DbUser; newServerIDs: Snowflake[] }) {
+    const { dbUser, newServerIDs } = options;
+    const { servers: oldServerIDs } = dbUser;
+
+    const serversToAdd = newServerIDs.filter((id) => !oldServerIDs.includes(id));
+    const serversToRemove = oldServerIDs.filter((id) => !newServerIDs.includes(id));
+
+    serversToAdd.map(async (guildID) => {
+      const result = await ServerConfigModelController.createServerConfigIfNotExists(guildID);
+      const displayGuild = await this.getDisplayMaybeGuild(guildID);
+
+      if (result === null) {
+        LOGGER.debug(`Server config for server ${displayGuild} already exists. Skipping creation.`);
+        return;
+      }
+
+      const message = `Created empty server config for ${displayGuild}.`;
+
+      LOGGER.info(message);
+      await this.interaction.followUp(message);
+    });
+
+    serversToRemove.map(async (guildID) => {
+      const deleted = await ServerConfigModelController.deleteServerConfigIfNeeded(guildID);
+      const displayGuild = await this.getDisplayMaybeGuild(guildID);
+
+      if (deleted) {
+        const message = `Deleted server config for ${displayGuild} because it's no longer in use.`;
+
+        LOGGER.info(message);
+        await this.interaction.followUp(message);
+      } else {
+        LOGGER.debug(`Server config for ${displayGuild} still in use. Skipping deletion.`);
+      }
+    });
+  }
+
+  private async getDisplayMaybeGuild(guildID: Snowflake) {
+    return this.client.guilds
+      .fetch(guildID)
+      .then((guild) => {
+        return displayGuild(guild);
+      })
+      .catch((e) => {
+        LOGGER.error(`Error fetching guild: ${e}`);
+        return inlineCode(guildID);
+      });
+  }
 }
+
+type AddUpdateOptions = {
+  guildIDs: Snowflake[];
+  userType: UserType;
+};
