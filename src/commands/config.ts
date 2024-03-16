@@ -155,16 +155,16 @@ export default new Command({
   execute: async ({ interaction, args, client }) => {
     await interaction.deferReply();
 
-    const details = await checkUserInDatabase({ interaction, commandName });
-    if (!details) return;
+    const ctx = await checkUserInDatabase({ interaction, commandName });
+    if (!ctx) return;
 
-    if (details.guild.id === botConfig.adminServerID) {
+    if (ctx.guild.id === botConfig.adminServerID) {
       await interaction.editReply('This command is not available in the admin server.');
       return;
     }
 
     const commandHandler = new ConfigCommandHandler({
-      guild: details.guild,
+      guild: ctx.guild,
       client,
       interaction,
     });
