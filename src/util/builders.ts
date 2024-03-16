@@ -1,6 +1,5 @@
 import {
   APIEmbed,
-  ClientUser,
   EmbedBuilder,
   EmbedData,
   Guild,
@@ -29,28 +28,7 @@ export class InfoEmbedBuilder extends EmbedBuilder {
   }
 }
 
-export class BroadCastEmbedBuilder extends EmbedBuilder {
-  constructor(
-    embedData: APIEmbed | EmbedData,
-    options: {
-      clientUser: ClientUser | undefined;
-      broadcastType: BroadcastType;
-    },
-  ) {
-    super(embedData);
-
-    this.setColor(getBroadcastEmbedColor(options.broadcastType));
-
-    this.setFooter({
-      text: `TMC Janitor Broadcast`,
-      iconURL: options.clientUser?.displayAvatarURL(),
-    });
-
-    this.setTimestamp(Date.now());
-  }
-}
-
-function getBroadcastEmbedColor(broadcastType: BroadcastType) {
+export function getBroadcastEmbedColor(broadcastType: BroadcastType) {
   if (broadcastType === 'report' || broadcastType === 'reactivate') {
     return 16_711_680; // red
   }
