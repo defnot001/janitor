@@ -21,7 +21,7 @@ import { LOGGER } from './logger';
  * Fetches guilds from an array of guild IDs.
  * Returns a Map of guild IDs to guilds.
  */
-export async function getServerMap(
+export async function getGuildMap(
   guildIDs: Snowflake[],
   client: Client,
 ): Promise<Map<Snowflake, Guild | null>> {
