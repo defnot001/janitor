@@ -40,9 +40,10 @@ export abstract class Broadcaster {
     client: Client;
     dbBadActor: DbBadActor;
     broadcastType: BroadcastType;
+    originatingGuild: Guild;
   }) {
-    const { client, dbBadActor, broadcastType } = options;
-    const listenersMap = await this.getListenersMap(client);
+    const { client, dbBadActor, broadcastType, originatingGuild } = options;
+    const listenersMap = await this.getListenersMap(originatingGuild, client);
 
     // We can use type assertion here, because we excluded all servers without a log_channel in getListenersMap()
     const serverChannelIDs = Array.from(listenersMap.values()).map((c) => {
@@ -324,11 +325,18 @@ export abstract class Broadcaster {
     await Promise.allSettled(promises);
   }
 
-  private static async getListenersMap(client: Client): Promise<Map<Snowflake, ServerConfig>> {
+  private static async getListenersMap(
+    originatingGuild: Guild,
+    client: Client,
+  ): Promise<Map<Snowflake, ServerConfig>> {
     const serverConfigs = await ServerConfigModelController.getAllServerConfigs();
     const configMap: Map<Snowflake, ServerConfig> = new Map();
 
     for await (const config of serverConfigs) {
+      if (config.server_id === originatingGuild.id) {
+        continue;
+      }
+
       if (!config.log_channel) {
         await LOGGER.warn(
           `No logchannel set for server ${config.server_id}. Skipping their for broadcasting.`,
