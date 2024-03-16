@@ -40,7 +40,7 @@ export type DbServerConfig = {
 
 export type ServerConfig = DbServerConfig & { userIDs: Snowflake[] };
 
-type CreateServerConfig = {
+export type CreateServerConfig = {
   server_id: Snowflake;
   spam_action_level?: ActionLevel | null;
   impersonation_action_level?: ActionLevel | null;
