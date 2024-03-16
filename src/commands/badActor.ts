@@ -15,7 +15,7 @@ import {
 import { Command } from '../handler/classes/Command';
 import { botConfig, projectPaths } from '../config';
 import { DbBadActor, BadActorModelController } from '../database/model/BadActorModelController';
-import { InfoEmbedBuilder } from '../util/builders';
+import { InfoEmbedBuilder, getBroadcastEmbedColor } from '../util/builders';
 import { Screenshot } from '../util/attachments';
 import {
   displayDateTimeFormatted,
@@ -27,7 +27,7 @@ import {
   getConfirmCancelRow,
 } from '../util/discord';
 import path from 'path';
-import { Broadcaster } from '../util/broadcast';
+import { BroadcastType, Broadcaster } from '../util/broadcast';
 import { LOGGER } from '../util/logger';
 import { checkUserInDatabase } from '../util/permission';
 import { ExtendedClient } from '../handler/classes/ExtendedClient';
@@ -550,7 +550,6 @@ class BadActorCommandHandler {
       client: this.client,
       broadcastType: 'deactivate',
       dbBadActor: deactivatedBadActor,
-      originatingGuild: this.guild,
     });
   }
   public async handleReactivate(args: { databaseID: number; reason: string }) {
@@ -589,7 +588,6 @@ class BadActorCommandHandler {
       client: this.client,
       broadcastType: 'reactivate',
       dbBadActor: reactivatedBadActor,
-      originatingGuild: this.guild,
     });
   }
   public async handleAddScreenshot(args: { databaseID: number; attachment: Attachment }) {
@@ -643,7 +641,6 @@ class BadActorCommandHandler {
       client: this.client,
       broadcastType: 'add_screenshot',
       dbBadActor: updatedBadActor,
-      originatingGuild: this.guild,
     });
   }
   public async handleReplaceScreenshot(args: { databaseID: number; attachment: Attachment }) {
@@ -705,7 +702,6 @@ class BadActorCommandHandler {
       client: this.client,
       broadcastType: 'replace_screenshot',
       dbBadActor: updatedBadActor,
-      originatingGuild: this.guild,
     });
   }
   public async handleUpdateExplanation(args: { databaseID: number; explanation: string }) {
@@ -745,7 +741,6 @@ class BadActorCommandHandler {
       client: this.client,
       broadcastType: 'update_explanation',
       dbBadActor: updatedBadActor,
-      originatingGuild: this.guild,
     });
   }
 
@@ -874,7 +869,6 @@ class BadActorCommandHandler {
     await Broadcaster.broadcast({
       client: this.client,
       broadcastType: 'report',
-      originatingGuild: this.guild,
       dbBadActor,
     });
 
@@ -909,7 +903,11 @@ class BadActorCommandHandler {
   }
 }
 
-async function buildBadActorEmbed(options: { dbBadActor: DbBadActor; client: ExtendedClient }) {
+export async function buildBadActorEmbed(options: {
+  dbBadActor: DbBadActor;
+  client: ExtendedClient;
+  broadcastType?: BroadcastType;
+}) {
   const { dbBadActor, client } = options;
 
   const badActorUser = await client.users.fetch(dbBadActor.user_id).catch(async () => {
@@ -969,14 +967,18 @@ async function buildBadActorEmbed(options: { dbBadActor: DbBadActor; client: Ext
     },
   ];
 
+  const embedColor = options.broadcastType
+    ? getBroadcastEmbedColor(options.broadcastType)
+    : 3_517_048;
+
   const embed = new EmbedBuilder({
     title: embedTitle,
     description: embedDescription,
     fields: embedFields,
-    color: 3_517_048,
+    color: embedColor,
     timestamp: new Date(),
     footer: {
-      text: 'TMC Janitor Bad Actor Report',
+      text: 'TMC Janitor Broadcast',
       iconURL: client.user?.displayAvatarURL(),
     },
   });
