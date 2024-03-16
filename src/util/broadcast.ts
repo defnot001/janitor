@@ -2,6 +2,7 @@ import {
   AttachmentBuilder,
   Client,
   Collection,
+  EmbedBuilder,
   Guild,
   GuildMember,
   PermissionFlagsBits,
@@ -22,7 +23,6 @@ import { UserModelController } from '../database/model/UserModelController';
 import { LOGGER } from './logger';
 import { BadActorSubcommand, buildBadActorEmbed } from '../commands/badActor';
 import { DbBadActor } from '../database/model/BadActorModelController';
-import { BroadCastEmbedBuilder } from './builders';
 import { botConfig } from '../config';
 import { getGuildMember, getTextChannelByID } from './discord';
 import { ExtendedClient } from '../handler/classes/ExtendedClient';
@@ -250,7 +250,7 @@ export abstract class Broadcaster {
   }
 
   private static async broadcastToAdminServer(options: {
-    embed: BroadCastEmbedBuilder;
+    embed: EmbedBuilder;
     attachment: AttachmentBuilder | null;
     notificationMessage: string;
     client: Client;
@@ -277,7 +277,7 @@ export abstract class Broadcaster {
   }
 
   private static async broadcastToServers(options: {
-    embed: BroadCastEmbedBuilder;
+    embed: EmbedBuilder;
     attachment: AttachmentBuilder | null;
     validLogChannels: { guild: Guild; logChannel: TextChannel }[];
     notificationMessage: string;
