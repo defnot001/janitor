@@ -1,13 +1,30 @@
-import { ApplicationCommandOptionType, Guild, User, inlineCode, time } from 'discord.js';
+import {
+  ApplicationCommandOptionType,
+  CommandInteractionOptionResolver,
+  Guild,
+  Snowflake,
+  TextChannel,
+  User,
+} from 'discord.js';
 import { Command } from '../handler/classes/Command';
 import { botConfig } from '../config';
-import { InfoEmbedBuilder } from '../util/builders';
+import { buildServerConfigEmbed } from '../util/builders';
 import {
+  CreateServerConfig,
   DbServerConfig,
   ServerConfigModelController,
-  displayActionLevel,
 } from '../database/model/ServerConfigModelController';
 import { checkUserInDatabase } from '../util/permission';
+import {
+  displayGuild,
+  displayGuildFormatted,
+  getTextChannelByID,
+  getUserMap,
+} from '../util/discord';
+import { UserModelController } from '../database/model/UserModelController';
+import { ExtendedClient } from '../handler/classes/ExtendedClient';
+import { ExtendedInteraction } from '../handler/types';
+import { LOGGER } from '../util/logger';
 
 const commandName = 'config';
 
@@ -135,7 +152,7 @@ export default new Command({
       ],
     },
   ],
-  execute: async ({ interaction, args }) => {
+  execute: async ({ interaction, args, client }) => {
     await interaction.deferReply();
 
     const details = await checkUserInDatabase({ interaction, commandName });
@@ -146,142 +163,152 @@ export default new Command({
       return;
     }
 
+    const commandHandler = new ConfigCommandHandler({
+      guild: details.guild,
+      client,
+      interaction,
+    });
+
     const subcommand = args.getSubcommand() as 'display' | 'update';
 
     if (subcommand === 'display') {
-      try {
-        const serverConfig = await ServerConfigModelController.getServerConfig(details.guild.id);
-
-        if (!serverConfig) {
-          await interaction.editReply('Server config not found.');
-          return;
-        }
-
-        const embed = buildServerConfigEmbed({
-          guild: details.guild,
-          user: interaction.user,
-          serverConfig,
-        });
-
-        await interaction.editReply({ embeds: [embed] });
-        return;
-      } catch (e) {
-        await interaction.editReply(`Failed to get server config: ${e}`);
-        return;
-      }
+      await commandHandler.handleDisplay();
+      return;
     }
 
     if (subcommand === 'update') {
-      const logChannel = args.getChannel('logchannel');
-      const pingUsers = args.getBoolean('pingusers');
-      const pingRole = args.getRole('pingrole');
-      const spamActionLevel = args.getInteger('spam_actionlevel');
-      const impersonationActionLevel = args.getInteger('impersonation_actionlevel');
-      const bigotryActionLevel = args.getInteger('bigotry_actionlevel');
-      const timeoutUsersWithRole = args.getBoolean('timeoutuserswithrole');
-      const ignoredRoles =
-        args
-          .getString('ignoredroles')
-          ?.split(',')
-          .map((id) => id.trim()) ?? [];
-
-      try {
-        const serverConfig = await ServerConfigModelController.updateServerConfig({
-          server_id: details.guild.id,
-          log_channel: logChannel?.id,
-          ping_users: pingUsers,
-          ping_role: pingRole?.id,
-          spam_action_level: spamActionLevel,
-          impersonation_action_level: impersonationActionLevel,
-          bigotry_action_level: bigotryActionLevel,
-          timeout_users_with_role: timeoutUsersWithRole,
-          ignored_roles: ignoredRoles,
-        });
-
-        if (!serverConfig) {
-          await interaction.editReply('Server config not found.');
-          return;
-        }
-
-        const embed = buildServerConfigEmbed({
-          guild: details.guild,
-          user: interaction.user,
-          serverConfig,
-        });
-
-        await interaction.editReply({ content: 'Updated Serverconfig', embeds: [embed] });
-      } catch (e) {
-        await interaction.editReply(`Failed to update server config: ${e}`);
-        return;
-      }
+      await commandHandler.handleUpdate(args);
+      return;
     }
   },
 });
 
-function buildServerConfigEmbed(details: {
-  user: User;
+class ConfigCommandHandler {
+  interaction: ExtendedInteraction;
+  client: ExtendedClient;
   guild: Guild;
-  serverConfig: DbServerConfig;
-}) {
-  const logChannel = details.serverConfig.log_channel
-    ? `<#${details.serverConfig.log_channel}>`
-    : 'Not set';
+  constructor(options: { interaction: ExtendedInteraction; client: ExtendedClient; guild: Guild }) {
+    this.interaction = options.interaction;
+    this.client = options.client;
+    this.guild = options.guild;
+  }
 
-  return new InfoEmbedBuilder(details.user, {
-    title: `Server Config for ${details.guild.name}`,
-    fields: [
-      {
-        name: 'Server ID',
-        value: inlineCode(details.guild.id),
-      },
-      {
-        name: 'Log Channel',
-        value: logChannel,
-      },
-      {
-        name: 'Ping Admins',
-        value: details.serverConfig.ping_users ? 'Enabled' : 'Disabled',
-      },
-      {
-        name: 'Ping Role',
-        value: details.serverConfig.ping_role ? `<@&${details.serverConfig.ping_role}>` : 'Not set',
-      },
-      {
-        name: 'Spam Action Level',
-        value: displayActionLevel(details.serverConfig.spam_action_level),
-      },
-      {
-        name: 'Impersonation Action Level',
-        value: displayActionLevel(details.serverConfig.impersonation_action_level),
-      },
-      {
-        name: 'Bigotry Action Level',
-        value: displayActionLevel(details.serverConfig.bigotry_action_level),
-      },
-      {
-        name: 'Timeout Users With Role',
-        value: details.serverConfig.timeout_users_with_role ? 'Enabled' : 'Disabled',
-      },
-      {
-        name: 'Ignored Roles',
-        value: details.serverConfig.ignored_roles.join('\n') || 'None',
-      },
-      {
-        name: 'Created At',
-        value: `${time(new Date(details.serverConfig.created_at), 'D')}\n(${time(
-          new Date(details.serverConfig.created_at),
-          'R',
-        )})`,
-        inline: true,
-      },
-      {
-        name: 'Updated At',
-        value: `${time(new Date(details.serverConfig.updated_at), 'D')}\n(${time(
-          new Date(details.serverConfig.updated_at),
-          'R',
-        )})`,
-        inline: true,
-      },
-    ],
-  });
+  public async handleDisplay(): Promise<void> {
+    let serverConfig: DbServerConfig | null = null;
+
+    try {
+      serverConfig = await ServerConfigModelController.getServerConfig(this.guild.id);
+    } catch (e) {
+      await this.interaction.editReply(
+        `Failed to get server configf for ${displayGuildFormatted(this.guild)}`,
+      );
+      await LOGGER.error(`Failed to get server config for ${displayGuild(this.guild)}: ${e}`);
+      return;
+    }
+
+    if (!serverConfig) {
+      await this.interaction.editReply(
+        `Server config not found for ${displayGuildFormatted(this.guild)}`,
+      );
+      await LOGGER.error(`Server config not found for ${displayGuild(this.guild)}`);
+      return;
+    }
+
+    const serverUsers = await this.getServerUsers();
+    const logChannel = await this.getLogChannel(serverConfig.log_channel);
+
+    const embed = buildServerConfigEmbed({
+      interaction: this.interaction,
+      dbServerConfig: serverConfig,
+      guild: this.guild,
+      users: serverUsers,
+      logChannel,
+    });
+
+    await this.interaction.editReply({ embeds: [embed] });
+  }
+  public async handleUpdate(args: CommandInteractionOptionResolver): Promise<void> {
+    const updateOptions = this.getUpdateOptions(args);
+
+    try {
+      const serverConfig = await ServerConfigModelController.updateServerConfig(updateOptions);
+
+      if (!serverConfig) {
+        await this.interaction.editReply('Server config not found.');
+        return;
+      }
+
+      const logChannel = await this.getLogChannel(serverConfig.log_channel);
+      const serverUsers = await this.getServerUsers();
+
+      const embed = buildServerConfigEmbed({
+        interaction: this.interaction,
+        dbServerConfig: serverConfig,
+        guild: this.guild,
+        users: serverUsers,
+        logChannel,
+      });
+
+      await this.interaction.editReply({ content: 'Updated Serverconfig', embeds: [embed] });
+    } catch (e) {
+      await this.interaction.editReply(`Failed to update server config: ${e}`);
+      await LOGGER.error(`Failed to update server config: ${e}`);
+    }
+  }
+
+  private async getLogChannel(channelID: Snowflake | null): Promise<TextChannel | null> {
+    return channelID ? await getTextChannelByID(this.client, channelID) : null;
+  }
+
+  private async getServerUsers(): Promise<User[]> {
+    try {
+      const users = await UserModelController.getUsersByServer(this.guild.id);
+
+      try {
+        const userMap = await getUserMap(
+          users.map((user) => user.id),
+          this.client,
+        );
+
+        return Array.from(userMap.values()).filter((user) => user !== null) as User[];
+      } catch (e) {
+        await LOGGER.error(
+          `Failed to fetch discord users from ID to create a serverconfig embed for ${displayGuild(this.guild)}: ${e}`,
+        );
+        return [];
+      }
+    } catch (e) {
+      await LOGGER.error(
+        `Failed to get users for ${displayGuild(this.guild)} from the database: ${e}`,
+      );
+      return [];
+    }
+  }
+
+  private getUpdateOptions(args: CommandInteractionOptionResolver): CreateServerConfig {
+    const logChannel = args.getChannel('logchannel');
+    const pingUsers = args.getBoolean('pingusers');
+    const pingRole = args.getRole('pingrole');
+    const spamActionLevel = args.getInteger('spam_actionlevel');
+    const impersonationActionLevel = args.getInteger('impersonation_actionlevel');
+    const bigotryActionLevel = args.getInteger('bigotry_actionlevel');
+    const timeoutUsersWithRole = args.getBoolean('timeoutuserswithrole');
+    const ignoredRoles =
+      args
+        .getString('ignoredroles')
+        ?.split(',')
+        .map((id) => id.trim()) ?? [];
+
+    return {
+      server_id: this.guild.id,
+      log_channel: logChannel?.id,
+      ping_users: pingUsers,
+      ping_role: pingRole?.id,
+      spam_action_level: spamActionLevel,
+      impersonation_action_level: impersonationActionLevel,
+      bigotry_action_level: bigotryActionLevel,
+      timeout_users_with_role: timeoutUsersWithRole,
+      ignored_roles: ignoredRoles,
+    };
+  }
 }
