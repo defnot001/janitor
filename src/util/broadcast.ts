@@ -2,7 +2,6 @@ import {
   AttachmentBuilder,
   Client,
   Collection,
-  EmbedData,
   Guild,
   GuildMember,
   PermissionFlagsBits,
@@ -12,7 +11,6 @@ import {
   User,
   escapeMarkdown,
   inlineCode,
-  time,
   userMention,
 } from 'discord.js';
 import {
@@ -22,12 +20,12 @@ import {
 } from '../database/model/ServerConfigModelController';
 import { UserModelController } from '../database/model/UserModelController';
 import { LOGGER } from './logger';
-import { BadActorSubcommand } from '../commands/badActor';
+import { BadActorSubcommand, buildBadActorEmbed } from '../commands/badActor';
 import { DbBadActor } from '../database/model/BadActorModelController';
 import { BroadCastEmbedBuilder } from './builders';
-import path from 'path';
-import { botConfig, projectPaths } from '../config';
+import { botConfig } from '../config';
 import { getGuildMember, getTextChannelByID } from './discord';
+import { ExtendedClient } from '../handler/classes/ExtendedClient';
 export type BroadcastType = Exclude<
   BadActorSubcommand,
   'display_latest' | 'display_by_user' | 'display_by_id'
@@ -37,20 +35,24 @@ type ModerationAction = 'none' | 'timeout' | 'kick' | 'softban' | 'ban';
 
 export abstract class Broadcaster {
   public static async broadcast(options: {
-    client: Client;
+    client: ExtendedClient;
     dbBadActor: DbBadActor;
     broadcastType: BroadcastType;
-    originatingGuild: Guild;
   }) {
-    const { client, dbBadActor, broadcastType, originatingGuild } = options;
-    const listenersMap = await this.getListenersMap(originatingGuild, client);
+    const { client, dbBadActor, broadcastType } = options;
+    const listenersMap = await this.getListenersMap(client);
 
     // We can use type assertion here, because we excluded all servers without a log_channel in getListenersMap()
     const serverChannelIDs = Array.from(listenersMap.values()).map((c) => {
       return { guildID: c.server_id, channelID: c.log_channel! };
     });
 
-    const { embed, attachment } = await this.buildBadActorEmbed(client, dbBadActor, broadcastType);
+    const { embed, attachment } = await buildBadActorEmbed({
+      client,
+      dbBadActor,
+      broadcastType,
+    });
+
     const validLogChannels = await this.getValidLogChannels(client, serverChannelIDs);
     const notificationMessage = this.getNotificationMessage(broadcastType);
 
@@ -96,12 +98,7 @@ export abstract class Broadcaster {
     const { client, dbBadActor, validLogChannels } = options;
 
     // Fetch the user object of the bad actor
-    const badActorUser = await client.users.fetch(dbBadActor.user_id).catch(async (e) => {
-      await LOGGER.error(
-        `Failed to fetch user ${dbBadActor.user_id} to take moderation action: ${e}`,
-      );
-      return null;
-    });
+    const badActorUser = await client.users.fetch(dbBadActor.user_id).catch(() => null);
 
     if (!badActorUser) {
       await LOGGER.error(
@@ -325,18 +322,11 @@ export abstract class Broadcaster {
     await Promise.allSettled(promises);
   }
 
-  private static async getListenersMap(
-    originatingGuild: Guild,
-    client: Client,
-  ): Promise<Map<Snowflake, ServerConfig>> {
+  private static async getListenersMap(client: Client): Promise<Map<Snowflake, ServerConfig>> {
     const serverConfigs = await ServerConfigModelController.getAllServerConfigs();
     const configMap: Map<Snowflake, ServerConfig> = new Map();
 
     for await (const config of serverConfigs) {
-      if (config.server_id === originatingGuild.id) {
-        continue;
-      }
-
       if (!config.log_channel) {
         await LOGGER.warn(
           `No logchannel set for server ${config.server_id}. Skipping their for broadcasting.`,
@@ -440,96 +430,6 @@ export abstract class Broadcaster {
     }
 
     return validLogChannels;
-  }
-
-  private static async buildBadActorEmbed(
-    client: Client,
-    badActor: DbBadActor,
-    broadcastType: BroadcastType,
-  ) {
-    const badActorUser = await client.users.fetch(badActor.user_id).catch(async (e) => {
-      await LOGGER.error(
-        `Failed to fetch user ${badActor.user_id} to create broadcast embed: ${e}`,
-      );
-      return null;
-    });
-
-    const initialGuild = await client.guilds
-      .fetch(badActor.originally_created_in)
-      .catch(async (e) => {
-        await LOGGER.error(
-          `Failed to fetch guild ${badActor.originally_created_in} to create broadcast embed: ${e}`,
-        );
-        return null;
-      });
-
-    const embedTitle = `Bad Actor ${badActorUser ? badActorUser.globalName ?? badActorUser.username : badActor.user_id}`;
-    const initialGuildDisplay = initialGuild
-      ? `${initialGuild.name} (${inlineCode(initialGuild.id)})`
-      : badActor.originally_created_in;
-
-    const embedData: EmbedData = {
-      title: embedTitle,
-      fields: [
-        { name: 'Database Entry ID', value: inlineCode(badActor.id.toString()) },
-        { name: 'User ID', value: inlineCode(badActor.user_id) },
-        { name: 'Active', value: badActor.is_active ? 'Yes' : 'No' },
-        { name: 'Type', value: badActor.actor_type },
-        {
-          name: 'Explanation/Reason',
-          value: badActor.explanation ?? 'No explanation provided.',
-        },
-        {
-          name: 'Server of Origin',
-          value: initialGuildDisplay,
-        },
-        {
-          name: 'Created At',
-          value: `${time(new Date(badActor.created_at), 'D')}\n(${time(
-            new Date(badActor.created_at),
-            'R',
-          )})`,
-        },
-        {
-          name: 'Last Updated At',
-          value: `${time(new Date(badActor.updated_at), 'D')}\n(${time(
-            new Date(badActor.updated_at),
-            'R',
-          )})`,
-        },
-        {
-          name: 'Last Updated By',
-          value: `${userMention(badActor.last_changed_by)} (${inlineCode(badActor.last_changed_by)})`,
-        },
-      ],
-    };
-
-    const embed = new BroadCastEmbedBuilder(embedData, {
-      broadcastType,
-      clientUser: client.user ?? undefined,
-    });
-
-    if (badActorUser) {
-      embed.setThumbnail(badActorUser.displayAvatarURL());
-    }
-
-    let attachment: AttachmentBuilder | null = null;
-
-    if (badActor.screenshot_proof) {
-      try {
-        attachment = new AttachmentBuilder(
-          path.join(projectPaths.sources, '..', 'screenshots', badActor.screenshot_proof),
-        );
-      } catch (e) {
-        await LOGGER.error(`Failed to create attachment for bad actor ${badActor.id}: ${e}`);
-      }
-    }
-
-    if (attachment) {
-      embed.setImage(`attachment://${badActor.screenshot_proof}`);
-    }
-
-    return { embed, attachment };
   }
 
   private static getNotificationMessage(broadcastType: BroadcastType) {
