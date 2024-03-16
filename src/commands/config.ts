@@ -184,9 +184,9 @@ export default new Command({
 });
 
 class ConfigCommandHandler {
-  interaction: ExtendedInteraction;
-  client: ExtendedClient;
-  guild: Guild;
+  private readonly interaction: ExtendedInteraction;
+  private readonly client: ExtendedClient;
+  private readonly guild: Guild;
   constructor(options: { interaction: ExtendedInteraction; client: ExtendedClient; guild: Guild }) {
     this.interaction = options.interaction;
     this.client = options.client;

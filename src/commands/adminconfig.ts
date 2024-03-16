@@ -82,8 +82,8 @@ export default new Command({
 });
 
 class AdminconfigCommandHandler {
-  interaction: ExtendedInteraction;
-  client: ExtendedClient;
+  private readonly interaction: ExtendedInteraction;
+  private readonly client: ExtendedClient;
 
   public constructor(interaction: ExtendedInteraction, client: ExtendedClient) {
     this.interaction = interaction;
