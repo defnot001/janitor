@@ -3,9 +3,9 @@
   "module": "index.ts",
   "type": "module",
   "devDependencies": {
+    "@biomejs/biome": "1.6.1",
     "@types/pg": "^8.11.2",
-    "bun-types": "latest",
-    "prettier": "^3.2.5"
+    "bun-types": "latest"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
@@ -18,6 +18,8 @@
   "scripts": {
     "dev": "bun run src/index.ts",
     "dev:watch": "bun run --watch src/index.ts",
+    "format": "bunx @biomejs/biome format src --write",
+    "lint": "bunx @biomejs/biome check --apply src",
     "deploy": "NODE_ENV=production bun run src/index.ts",
     "migrate:dev": "bun run src/database/migration.ts",
     "migrate:prod": "NODE_ENV=production bun run src/database/migration.ts"
