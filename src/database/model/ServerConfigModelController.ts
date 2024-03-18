@@ -111,20 +111,53 @@ export abstract class ServerConfigModelController {
       throw new Error('Server config does not exist');
     }
 
-    const spam_action_level =
-      updateServerConfig.spam_action_level || currentServerConfig.spam_action_level;
-    const impersonation_action_level =
-      updateServerConfig.impersonation_action_level ||
-      currentServerConfig.impersonation_action_level;
-    const bigotry_action_level =
-      updateServerConfig.bigotry_action_level || currentServerConfig.bigotry_action_level;
+    const spam_action_level = 
+      updateServerConfig.spam_action_level !== undefined && 
+      updateServerConfig.spam_action_level !== null
+        ? updateServerConfig.spam_action_level
+        : currentServerConfig.spam_action_level;
 
-    const logChannel = updateServerConfig.log_channel || currentServerConfig.log_channel;
-    const pingUsers = updateServerConfig.ping_users || currentServerConfig.ping_users;
-    const pingRole = updateServerConfig.ping_role || currentServerConfig.ping_role;
+    const impersonation_action_level =
+      updateServerConfig.impersonation_action_level !== undefined &&
+      updateServerConfig.impersonation_action_level !== null
+        ? updateServerConfig.impersonation_action_level
+        : currentServerConfig.impersonation_action_level;
+        
+    const bigotry_action_level =
+      updateServerConfig.bigotry_action_level !== undefined &&
+      updateServerConfig.bigotry_action_level !== null
+        ? updateServerConfig.bigotry_action_level
+        : currentServerConfig.bigotry_action_level;
+
+    const logChannel = 
+      updateServerConfig.log_channel !== undefined && 
+      updateServerConfig.log_channel !== null
+        ? updateServerConfig.log_channel
+        : currentServerConfig.log_channel;
+
+    const pingUsers =
+      updateServerConfig.ping_users !== undefined && 
+      updateServerConfig.ping_users !== null
+        ? updateServerConfig.ping_users
+        : currentServerConfig.ping_users;     
+
+    const pingRole =
+      updateServerConfig.ping_role !== undefined && 
+      updateServerConfig.ping_role !== null
+        ? updateServerConfig.ping_role
+        : currentServerConfig.ping_role;
+
     const timeoutUsersWithRole =
-      updateServerConfig.timeout_users_with_role || currentServerConfig.timeout_users_with_role;
-    const ignoredRoles = updateServerConfig.ignored_roles || currentServerConfig.ignored_roles;
+      updateServerConfig.timeout_users_with_role !== undefined && 
+      updateServerConfig.timeout_users_with_role !== null
+        ? updateServerConfig.timeout_users_with_role
+        : currentServerConfig.timeout_users_with_role;
+
+    const ignoredRoles =
+      updateServerConfig.ignored_roles !== undefined && 
+      updateServerConfig.ignored_roles !== null
+        ? updateServerConfig.ignored_roles
+        : currentServerConfig.ignored_roles;    
 
     const serverConfig = await pgClient.query<DbServerConfig>(
       'UPDATE server_configs SET spam_action_level = $1, impersonation_action_level = $2, bigotry_action_level = $3, log_channel = $4, ping_users = $5, ping_role = $6, timeout_users_with_role = $7, ignored_roles = $8, updated_at = NOW() WHERE server_id = $9 RETURNING *',
