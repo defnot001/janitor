@@ -1,36 +1,36 @@
-import {
-  ApplicationCommandDataResolvable,
-  ChatInputApplicationCommandData,
-  CommandInteraction,
-  CommandInteractionOptionResolver,
-  GuildMember,
-  PermissionResolvable,
+import type {
+	ApplicationCommandDataResolvable,
+	ChatInputApplicationCommandData,
+	CommandInteraction,
+	CommandInteractionOptionResolver,
+	GuildMember,
+	PermissionResolvable,
 } from 'discord.js';
-import { ExtendedClient } from './classes/ExtendedClient';
+import type { ExtendedClient } from './classes/ExtendedClient';
 
 export type RegisterCommandOptions = {
-  guildID?: string;
-  commands: ApplicationCommandDataResolvable[];
+	guildID?: string;
+	commands: ApplicationCommandDataResolvable[];
 };
 
 export interface ExtendedInteraction extends CommandInteraction {
-  member: GuildMember;
+	member: GuildMember;
 }
 
 export type CommandOptions = {
-  userPermissions?: PermissionResolvable;
-  execute: (options: {
-    client: ExtendedClient;
-    interaction: ExtendedInteraction;
-    args: CommandInteractionOptionResolver;
-  }) => unknown;
+	userPermissions?: PermissionResolvable;
+	execute: (options: {
+		client: ExtendedClient;
+		interaction: ExtendedInteraction;
+		args: CommandInteractionOptionResolver;
+	}) => unknown;
 } & ChatInputApplicationCommandData;
 
 export type ClientStartOptions = {
-  botToken: string;
-  guildID?: string;
-  commandsPath: string;
-  eventsPath: string;
-  globalCommands: boolean;
-  registerCommands: boolean;
+	botToken: string;
+	guildID?: string;
+	commandsPath: string;
+	eventsPath: string;
+	globalCommands: boolean;
+	registerCommands: boolean;
 };

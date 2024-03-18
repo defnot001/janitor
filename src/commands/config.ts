@@ -1,314 +1,316 @@
 import {
-  ApplicationCommandOptionType,
-  CommandInteractionOptionResolver,
-  Guild,
-  Snowflake,
-  TextChannel,
-  User,
+	ApplicationCommandOptionType,
+	type CommandInteractionOptionResolver,
+	type Guild,
+	type Snowflake,
+	type TextChannel,
+	type User,
 } from 'discord.js';
-import { Command } from '../handler/classes/Command';
 import { botConfig } from '../config';
+import {
+	type CreateServerConfig,
+	type DbServerConfig,
+	ServerConfigModelController,
+} from '../database/model/ServerConfigModelController';
+import { UserModelController } from '../database/model/UserModelController';
+import { Command } from '../handler/classes/Command';
+import type { ExtendedClient } from '../handler/classes/ExtendedClient';
+import type { ExtendedInteraction } from '../handler/types';
 import { buildServerConfigEmbed } from '../util/builders';
 import {
-  CreateServerConfig,
-  DbServerConfig,
-  ServerConfigModelController,
-} from '../database/model/ServerConfigModelController';
-import { checkUserInDatabase } from '../util/permission';
-import {
-  displayGuild,
-  displayGuildFormatted,
-  getTextChannelByID,
-  getUserMap,
+	displayGuild,
+	displayGuildFormatted,
+	getTextChannelByID,
+	getUserMap,
 } from '../util/discord';
-import { UserModelController } from '../database/model/UserModelController';
-import { ExtendedClient } from '../handler/classes/ExtendedClient';
-import { ExtendedInteraction } from '../handler/types';
 import { LOGGER } from '../util/logger';
+import { checkUserInDatabase } from '../util/permission';
 
 const commandName = 'config';
 
 export default new Command({
-  name: commandName,
-  description: 'Configure the bot for your server',
-  options: [
-    {
-      name: 'display',
-      description: 'Display the current configuration',
-      type: ApplicationCommandOptionType.Subcommand,
-    },
-    {
-      name: 'update',
-      description: 'Change the configuration of the bot',
-      type: ApplicationCommandOptionType.Subcommand,
-      options: [
-        {
-          name: 'logchannel',
-          description: 'The channel to log actions to',
-          type: ApplicationCommandOptionType.Channel,
-        },
-        {
-          name: 'pingusers',
-          description: 'Whether or not to ping users when action is taken',
-          type: ApplicationCommandOptionType.Boolean,
-        },
-        {
-          name: 'pingrole',
-          description: 'The role to ping when actions are taken',
-          type: ApplicationCommandOptionType.Role,
-        },
-        {
-          name: 'spam_actionlevel',
-          description: 'The level of action to take for spamming users with hacked accounts',
-          type: ApplicationCommandOptionType.Integer,
-          choices: [
-            {
-              name: 'Notify',
-              value: 0,
-            },
-            {
-              name: 'Timeout',
-              value: 1,
-            },
-            {
-              name: 'Kick',
-              value: 2,
-            },
-            {
-              name: 'Soft Ban',
-              value: 3,
-            },
-            {
-              name: 'Ban',
-              value: 4,
-            },
-          ],
-        },
-        {
-          name: 'impersonation_actionlevel',
-          description: 'The level of action to take for users impersonating others',
-          type: ApplicationCommandOptionType.Integer,
-          choices: [
-            {
-              name: 'Notify',
-              value: 0,
-            },
-            {
-              name: 'Timeout',
-              value: 1,
-            },
-            {
-              name: 'Kick',
-              value: 2,
-            },
-            {
-              name: 'Soft Ban',
-              value: 3,
-            },
-            {
-              name: 'Ban',
-              value: 4,
-            },
-          ],
-        },
-        {
-          name: 'bigotry_actionlevel',
-          description: 'The level of action to take for users using bigoted language',
-          type: ApplicationCommandOptionType.Integer,
-          choices: [
-            {
-              name: 'Notify',
-              value: 0,
-            },
-            {
-              name: 'Timeout',
-              value: 1,
-            },
-            {
-              name: 'Kick',
-              value: 2,
-            },
-            {
-              name: 'Soft Ban',
-              value: 3,
-            },
-            {
-              name: 'Ban',
-              value: 4,
-            },
-          ],
-        },
-        {
-          name: 'timeoutuserswithrole',
-          description: 'Whether or not to timeout users with a specific role',
-          type: ApplicationCommandOptionType.Boolean,
-        },
-        {
-          name: 'ignoredroles',
-          description:
-            'Role IDs to ignore when taking action. Separate multiple roles with a comma',
-          type: ApplicationCommandOptionType.String,
-        },
-      ],
-    },
-  ],
-  execute: async ({ interaction, args, client }) => {
-    await interaction.deferReply();
+	name: commandName,
+	description: 'Configure the bot for your server',
+	options: [
+		{
+			name: 'display',
+			description: 'Display the current configuration',
+			type: ApplicationCommandOptionType.Subcommand,
+		},
+		{
+			name: 'update',
+			description: 'Change the configuration of the bot',
+			type: ApplicationCommandOptionType.Subcommand,
+			options: [
+				{
+					name: 'logchannel',
+					description: 'The channel to log actions to',
+					type: ApplicationCommandOptionType.Channel,
+				},
+				{
+					name: 'pingusers',
+					description: 'Whether or not to ping users when action is taken',
+					type: ApplicationCommandOptionType.Boolean,
+				},
+				{
+					name: 'pingrole',
+					description: 'The role to ping when actions are taken',
+					type: ApplicationCommandOptionType.Role,
+				},
+				{
+					name: 'spam_actionlevel',
+					description: 'The level of action to take for spamming users with hacked accounts',
+					type: ApplicationCommandOptionType.Integer,
+					choices: [
+						{
+							name: 'Notify',
+							value: 0,
+						},
+						{
+							name: 'Timeout',
+							value: 1,
+						},
+						{
+							name: 'Kick',
+							value: 2,
+						},
+						{
+							name: 'Soft Ban',
+							value: 3,
+						},
+						{
+							name: 'Ban',
+							value: 4,
+						},
+					],
+				},
+				{
+					name: 'impersonation_actionlevel',
+					description: 'The level of action to take for users impersonating others',
+					type: ApplicationCommandOptionType.Integer,
+					choices: [
+						{
+							name: 'Notify',
+							value: 0,
+						},
+						{
+							name: 'Timeout',
+							value: 1,
+						},
+						{
+							name: 'Kick',
+							value: 2,
+						},
+						{
+							name: 'Soft Ban',
+							value: 3,
+						},
+						{
+							name: 'Ban',
+							value: 4,
+						},
+					],
+				},
+				{
+					name: 'bigotry_actionlevel',
+					description: 'The level of action to take for users using bigoted language',
+					type: ApplicationCommandOptionType.Integer,
+					choices: [
+						{
+							name: 'Notify',
+							value: 0,
+						},
+						{
+							name: 'Timeout',
+							value: 1,
+						},
+						{
+							name: 'Kick',
+							value: 2,
+						},
+						{
+							name: 'Soft Ban',
+							value: 3,
+						},
+						{
+							name: 'Ban',
+							value: 4,
+						},
+					],
+				},
+				{
+					name: 'timeoutuserswithrole',
+					description: 'Whether or not to timeout users with a specific role',
+					type: ApplicationCommandOptionType.Boolean,
+				},
+				{
+					name: 'ignoredroles',
+					description:
+						'Role IDs to ignore when taking action. Separate multiple roles with a comma',
+					type: ApplicationCommandOptionType.String,
+				},
+			],
+		},
+	],
+	execute: async ({ interaction, args, client }) => {
+		await interaction.deferReply();
 
-    const ctx = await checkUserInDatabase({ interaction, commandName });
-    if (!ctx) return;
+		const ctx = await checkUserInDatabase({ interaction, commandName });
+		if (!ctx) return;
 
-    if (ctx.guild.id === botConfig.adminServerID) {
-      await interaction.editReply('This command is not available in the admin server.');
-      return;
-    }
+		if (ctx.guild.id === botConfig.adminServerID) {
+			await interaction.editReply('This command is not available in the admin server.');
+			return;
+		}
 
-    const commandHandler = new ConfigCommandHandler({
-      guild: ctx.guild,
-      client,
-      interaction,
-    });
+		const commandHandler = new ConfigCommandHandler({
+			guild: ctx.guild,
+			client,
+			interaction,
+		});
 
-    const subcommand = args.getSubcommand() as 'display' | 'update';
+		const subcommand = args.getSubcommand() as 'display' | 'update';
 
-    if (subcommand === 'display') {
-      await commandHandler.handleDisplay();
-      return;
-    }
+		if (subcommand === 'display') {
+			await commandHandler.handleDisplay();
+			return;
+		}
 
-    if (subcommand === 'update') {
-      await commandHandler.handleUpdate(args);
-      return;
-    }
-  },
+		if (subcommand === 'update') {
+			await commandHandler.handleUpdate(args);
+			return;
+		}
+	},
 });
 
 class ConfigCommandHandler {
-  private readonly interaction: ExtendedInteraction;
-  private readonly client: ExtendedClient;
-  private readonly guild: Guild;
-  constructor(options: { interaction: ExtendedInteraction; client: ExtendedClient; guild: Guild }) {
-    this.interaction = options.interaction;
-    this.client = options.client;
-    this.guild = options.guild;
-  }
+	private readonly interaction: ExtendedInteraction;
+	private readonly client: ExtendedClient;
+	private readonly guild: Guild;
+	constructor(options: { interaction: ExtendedInteraction; client: ExtendedClient; guild: Guild }) {
+		this.interaction = options.interaction;
+		this.client = options.client;
+		this.guild = options.guild;
+	}
 
-  public async handleDisplay(): Promise<void> {
-    let serverConfig: DbServerConfig | null = null;
+	public async handleDisplay(): Promise<void> {
+		let serverConfig: DbServerConfig | null = null;
 
-    try {
-      serverConfig = await ServerConfigModelController.getServerConfig(this.guild.id);
-    } catch (e) {
-      await this.interaction.editReply(
-        `Failed to get server configf for ${displayGuildFormatted(this.guild)}`,
-      );
-      await LOGGER.error(`Failed to get server config for ${displayGuild(this.guild)}: ${e}`);
-      return;
-    }
+		try {
+			serverConfig = await ServerConfigModelController.getServerConfig(this.guild.id);
+		} catch (e) {
+			await this.interaction.editReply(
+				`Failed to get server configf for ${displayGuildFormatted(this.guild)}`,
+			);
+			await LOGGER.error(`Failed to get server config for ${displayGuild(this.guild)}: ${e}`);
+			return;
+		}
 
-    if (!serverConfig) {
-      await this.interaction.editReply(
-        `Server config not found for ${displayGuildFormatted(this.guild)}`,
-      );
-      await LOGGER.error(`Server config not found for ${displayGuild(this.guild)}`);
-      return;
-    }
+		if (!serverConfig) {
+			await this.interaction.editReply(
+				`Server config not found for ${displayGuildFormatted(this.guild)}`,
+			);
+			await LOGGER.error(`Server config not found for ${displayGuild(this.guild)}`);
+			return;
+		}
 
-    const serverUsers = await this.getServerUsers();
-    const logChannel = await this.getLogChannel(serverConfig.log_channel);
+		const serverUsers = await this.getServerUsers();
+		const logChannel = await this.getLogChannel(serverConfig.log_channel);
 
-    const embed = buildServerConfigEmbed({
-      interaction: this.interaction,
-      dbServerConfig: serverConfig,
-      guild: this.guild,
-      users: serverUsers,
-      logChannel,
-    });
+		const embed = buildServerConfigEmbed({
+			interaction: this.interaction,
+			dbServerConfig: serverConfig,
+			guild: this.guild,
+			users: serverUsers,
+			logChannel,
+		});
 
-    await this.interaction.editReply({ embeds: [embed] });
-  }
-  public async handleUpdate(args: CommandInteractionOptionResolver): Promise<void> {
-    const updateOptions = this.getUpdateOptions(args);
+		await this.interaction.editReply({ embeds: [embed] });
+	}
+	public async handleUpdate(args: CommandInteractionOptionResolver): Promise<void> {
+		const updateOptions = this.getUpdateOptions(args);
 
-    try {
-      const serverConfig = await ServerConfigModelController.updateServerConfig(updateOptions);
+		try {
+			const serverConfig = await ServerConfigModelController.updateServerConfig(updateOptions);
 
-      if (!serverConfig) {
-        await this.interaction.editReply('Server config not found.');
-        return;
-      }
+			if (!serverConfig) {
+				await this.interaction.editReply('Server config not found.');
+				return;
+			}
 
-      const logChannel = await this.getLogChannel(serverConfig.log_channel);
-      const serverUsers = await this.getServerUsers();
+			const logChannel = await this.getLogChannel(serverConfig.log_channel);
+			const serverUsers = await this.getServerUsers();
 
-      const embed = buildServerConfigEmbed({
-        interaction: this.interaction,
-        dbServerConfig: serverConfig,
-        guild: this.guild,
-        users: serverUsers,
-        logChannel,
-      });
+			const embed = buildServerConfigEmbed({
+				interaction: this.interaction,
+				dbServerConfig: serverConfig,
+				guild: this.guild,
+				users: serverUsers,
+				logChannel,
+			});
 
-      await this.interaction.editReply({ content: 'Updated Serverconfig', embeds: [embed] });
-    } catch (e) {
-      await this.interaction.editReply(`Failed to update server config: ${e}`);
-      await LOGGER.error(`Failed to update server config: ${e}`);
-    }
-  }
+			await this.interaction.editReply({ content: 'Updated Serverconfig', embeds: [embed] });
+		} catch (e) {
+			await this.interaction.editReply(`Failed to update server config: ${e}`);
+			await LOGGER.error(`Failed to update server config: ${e}`);
+		}
+	}
 
-  private async getLogChannel(channelID: Snowflake | null): Promise<TextChannel | null> {
-    return channelID ? await getTextChannelByID(this.client, channelID) : null;
-  }
+	private async getLogChannel(channelID: Snowflake | null): Promise<TextChannel | null> {
+		return channelID ? await getTextChannelByID(this.client, channelID) : null;
+	}
 
-  private async getServerUsers(): Promise<User[]> {
-    try {
-      const users = await UserModelController.getUsersByServer(this.guild.id);
+	private async getServerUsers(): Promise<User[]> {
+		try {
+			const users = await UserModelController.getUsersByServer(this.guild.id);
 
-      try {
-        const userMap = await getUserMap(
-          users.map((user) => user.id),
-          this.client,
-        );
+			try {
+				const userMap = await getUserMap(
+					users.map((user) => user.id),
+					this.client,
+				);
 
-        return Array.from(userMap.values()).filter((user) => user !== null) as User[];
-      } catch (e) {
-        await LOGGER.error(
-          `Failed to fetch discord users from ID to create a serverconfig embed for ${displayGuild(this.guild)}: ${e}`,
-        );
-        return [];
-      }
-    } catch (e) {
-      await LOGGER.error(
-        `Failed to get users for ${displayGuild(this.guild)} from the database: ${e}`,
-      );
-      return [];
-    }
-  }
+				return Array.from(userMap.values()).filter((user) => user !== null) as User[];
+			} catch (e) {
+				await LOGGER.error(
+					`Failed to fetch discord users from ID to create a serverconfig embed for ${displayGuild(
+						this.guild,
+					)}: ${e}`,
+				);
+				return [];
+			}
+		} catch (e) {
+			await LOGGER.error(
+				`Failed to get users for ${displayGuild(this.guild)} from the database: ${e}`,
+			);
+			return [];
+		}
+	}
 
-  private getUpdateOptions(args: CommandInteractionOptionResolver): CreateServerConfig {
-    const logChannel = args.getChannel('logchannel');
-    const pingUsers = args.getBoolean('pingusers');
-    const pingRole = args.getRole('pingrole');
-    const spamActionLevel = args.getInteger('spam_actionlevel');
-    const impersonationActionLevel = args.getInteger('impersonation_actionlevel');
-    const bigotryActionLevel = args.getInteger('bigotry_actionlevel');
-    const timeoutUsersWithRole = args.getBoolean('timeoutuserswithrole');
-    const ignoredRoles =
-      args
-        .getString('ignoredroles')
-        ?.split(',')
-        .map((id) => id.trim()) ?? [];
+	private getUpdateOptions(args: CommandInteractionOptionResolver): CreateServerConfig {
+		const logChannel = args.getChannel('logchannel');
+		const pingUsers = args.getBoolean('pingusers');
+		const pingRole = args.getRole('pingrole');
+		const spamActionLevel = args.getInteger('spam_actionlevel');
+		const impersonationActionLevel = args.getInteger('impersonation_actionlevel');
+		const bigotryActionLevel = args.getInteger('bigotry_actionlevel');
+		const timeoutUsersWithRole = args.getBoolean('timeoutuserswithrole');
+		const ignoredRoles =
+			args
+				.getString('ignoredroles')
+				?.split(',')
+				.map((id) => id.trim()) ?? [];
 
-    return {
-      server_id: this.guild.id,
-      log_channel: logChannel?.id,
-      ping_users: pingUsers,
-      ping_role: pingRole?.id,
-      spam_action_level: spamActionLevel,
-      impersonation_action_level: impersonationActionLevel,
-      bigotry_action_level: bigotryActionLevel,
-      timeout_users_with_role: timeoutUsersWithRole,
-      ignored_roles: ignoredRoles,
-    };
-  }
+		return {
+			server_id: this.guild.id,
+			log_channel: logChannel?.id,
+			ping_users: pingUsers,
+			ping_role: pingRole?.id,
+			spam_action_level: spamActionLevel,
+			impersonation_action_level: impersonationActionLevel,
+			bigotry_action_level: bigotryActionLevel,
+			timeout_users_with_role: timeoutUsersWithRole,
+			ignored_roles: ignoredRoles,
+		};
+	}
 }

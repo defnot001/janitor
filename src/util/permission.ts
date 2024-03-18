@@ -1,10 +1,10 @@
-import { Guild } from 'discord.js';
-import { AdminModelController } from '../database/model/AdminModelController';
-import { DbUser, UserModelController } from '../database/model/UserModelController';
-import { ExtendedInteraction } from '../handler/types';
-import { LOGGER } from './logger';
-import { displayGuild, displayUser } from './discord';
+import type { Guild } from 'discord.js';
 import { botConfig } from '../config';
+import { AdminModelController } from '../database/model/AdminModelController';
+import { type DbUser, UserModelController } from '../database/model/UserModelController';
+import type { ExtendedInteraction } from '../handler/types';
+import { displayGuild, displayUser } from './discord';
+import { LOGGER } from './logger';
 
 /**
  * Checks if the user has permission to use the command by checking if the user exists in the users table in the database.
@@ -14,33 +14,35 @@ import { botConfig } from '../config';
  * **Sideeffect**: Sends a reply and logs a warning if the user does not exist in the database.
  */
 export async function checkUserInDatabase(options: {
-  interaction: ExtendedInteraction;
-  commandName: string;
+	interaction: ExtendedInteraction;
+	commandName: string;
 }): Promise<{ dbUser: DbUser; guild: Guild } | null> {
-  const { interaction, commandName } = options;
-  const guild = await getInteractionGuild(interaction);
+	const { interaction, commandName } = options;
+	const guild = await getInteractionGuild(interaction);
 
-  if (!guild) {
-    return null;
-  }
+	if (!guild) {
+		return null;
+	}
 
-  try {
-    const dbUser = await UserModelController.getUser(interaction.user.id);
+	try {
+		const dbUser = await UserModelController.getUser(interaction.user.id);
 
-    if (!dbUser) {
-      await LOGGER.warn(
-        `User ${displayUser(interaction.user)} attempted to use /${commandName} in ${displayGuild(guild)} but the user does not exist in the database.`,
-      );
-      await interaction.editReply('You do not have permission to use this command.');
-      return null;
-    }
+		if (!dbUser) {
+			await LOGGER.warn(
+				`User ${displayUser(interaction.user)} attempted to use /${commandName} in ${displayGuild(
+					guild,
+				)} but the user does not exist in the database.`,
+			);
+			await interaction.editReply('You do not have permission to use this command.');
+			return null;
+		}
 
-    return { dbUser, guild };
-  } catch (e) {
-    await LOGGER.error(`Error fetching user: ${e}`);
-    await interaction.editReply('Error fetching user.');
-    return null;
-  }
+		return { dbUser, guild };
+	} catch (e) {
+		await LOGGER.error(`Error fetching user: ${e}`);
+		await interaction.editReply('Error fetching user.');
+		return null;
+	}
 }
 
 /**
@@ -50,31 +52,33 @@ export async function checkUserInDatabase(options: {
  * **Sideeffect**: Sends a reply and logs a warning if the user is not an admin.
  */
 export async function checkAdminInDatabase(options: {
-  interaction: ExtendedInteraction;
-  commandName: string;
+	interaction: ExtendedInteraction;
+	commandName: string;
 }): Promise<boolean> {
-  const { interaction, commandName } = options;
-  const guild = await getInteractionGuild(interaction);
+	const { interaction, commandName } = options;
+	const guild = await getInteractionGuild(interaction);
 
-  if (!guild) {
-    return false;
-  }
+	if (!guild) {
+		return false;
+	}
 
-  try {
-    if (!(await AdminModelController.isAdmin(interaction.user.id))) {
-      await LOGGER.warn(
-        `${displayUser(interaction.user)} attempted to use /${commandName} in ${displayGuild(guild)} without permission.`,
-      );
-      await interaction.editReply('You do not have permission to use this command.');
-      return false;
-    }
-  } catch (e) {
-    await LOGGER.error(`Error fetching admin: ${e}`);
-    await interaction.editReply('Error fetching admin.');
-    return false;
-  }
+	try {
+		if (!(await AdminModelController.isAdmin(interaction.user.id))) {
+			await LOGGER.warn(
+				`${displayUser(interaction.user)} attempted to use /${commandName} in ${displayGuild(
+					guild,
+				)} without permission.`,
+			);
+			await interaction.editReply('You do not have permission to use this command.');
+			return false;
+		}
+	} catch (e) {
+		await LOGGER.error(`Error fetching admin: ${e}`);
+		await interaction.editReply('Error fetching admin.');
+		return false;
+	}
 
-  return true;
+	return true;
 }
 
 /**
@@ -84,25 +88,27 @@ export async function checkAdminInDatabase(options: {
  * **Sideeffect**: Sends a reply and logs a warning if the interaction was not created in the admin server.
  */
 export async function isInteractionInAdminServer(options: {
-  interaction: ExtendedInteraction;
-  commandName: string;
+	interaction: ExtendedInteraction;
+	commandName: string;
 }): Promise<boolean> {
-  const { interaction, commandName } = options;
-  const guild = await getInteractionGuild(interaction);
+	const { interaction, commandName } = options;
+	const guild = await getInteractionGuild(interaction);
 
-  if (!guild) {
-    return false;
-  }
+	if (!guild) {
+		return false;
+	}
 
-  if (guild.id !== botConfig.adminServerID) {
-    await LOGGER.warn(
-      `${displayUser(interaction.user)} attempted to use /${commandName} outside of the admin server.`,
-    );
-    await interaction.editReply('This command can only be used in the admin server.');
-    return false;
-  }
+	if (guild.id !== botConfig.adminServerID) {
+		await LOGGER.warn(
+			`${displayUser(
+				interaction.user,
+			)} attempted to use /${commandName} outside of the admin server.`,
+		);
+		await interaction.editReply('This command can only be used in the admin server.');
+		return false;
+	}
 
-  return true;
+	return true;
 }
 
 /**
@@ -112,22 +118,24 @@ export async function isInteractionInAdminServer(options: {
  * **Sideeffect**: Sends a reply and logs a warning if the interaction was not created in one of the User's allowed servers.
  */
 export async function isInteractionInUsersAllowedServers(options: {
-  interaction: ExtendedInteraction;
-  commandName: string;
-  dbUser: DbUser;
-  guild: Guild;
+	interaction: ExtendedInteraction;
+	commandName: string;
+	dbUser: DbUser;
+	guild: Guild;
 }): Promise<boolean> {
-  const { interaction, commandName, dbUser, guild } = options;
+	const { interaction, commandName, dbUser, guild } = options;
 
-  if (!dbUser.servers.includes(guild.id)) {
-    await LOGGER.warn(
-      `${displayUser(interaction.user)} attempted to use /${commandName} outside of their allowed server(s).`,
-    );
-    await interaction.editReply('This command can only be used your server(s).');
-    return false;
-  }
+	if (!dbUser.servers.includes(guild.id)) {
+		await LOGGER.warn(
+			`${displayUser(
+				interaction.user,
+			)} attempted to use /${commandName} outside of their allowed server(s).`,
+		);
+		await interaction.editReply('This command can only be used your server(s).');
+		return false;
+	}
 
-  return true;
+	return true;
 }
 
 /**
@@ -136,10 +144,10 @@ export async function isInteractionInUsersAllowedServers(options: {
  * **Sideeffect**: Sends a reply if the command was not used in a guild.
  */
 async function getInteractionGuild(interaction: ExtendedInteraction): Promise<Guild | null> {
-  if (!interaction.guild) {
-    await interaction.editReply('This command can only be used in a server.');
-    return null;
-  }
+	if (!interaction.guild) {
+		await interaction.editReply('This command can only be used in a server.');
+		return null;
+	}
 
-  return interaction.guild;
+	return interaction.guild;
 }
