@@ -3,6 +3,7 @@ import { client } from '..';
 import { Event } from '../handler/classes/Event';
 import type { ExtendedInteraction } from '../handler/types';
 import { LOGGER } from '../util/logger';
+import { display } from '../util/format';
 
 export default new Event('interactionCreate', async (interaction) => {
 	if (!interaction.isChatInputCommand()) {
@@ -31,7 +32,7 @@ export default new Event('interactionCreate', async (interaction) => {
 	}
 
 	LOGGER.info(
-		`${username} (${interaction.user.id}) used /${commandName}${channelNameAddon}${guildNameAddon}.`,
+		`${display(interaction.user)} used /${commandName}${channelNameAddon}${guildNameAddon}.`,
 	);
 
 	try {

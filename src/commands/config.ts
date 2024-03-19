@@ -17,14 +17,10 @@ import { Command } from '../handler/classes/Command';
 import type { ExtendedClient } from '../handler/classes/ExtendedClient';
 import type { ExtendedInteraction } from '../handler/types';
 import { buildServerConfigEmbed } from '../util/builders';
-import {
-	displayGuild,
-	displayGuildFormatted,
-	getTextChannelByID,
-	getUserMap,
-} from '../util/discord';
+import { getTextChannelByID, getUserMap } from '../util/discord';
 import { LOGGER } from '../util/logger';
 import { checkUserInDatabase } from '../util/permission';
+import { displayFormatted, display } from '../util/format';
 
 const commandName = 'config';
 
@@ -200,17 +196,17 @@ class ConfigCommandHandler {
 			serverConfig = await ServerConfigModelController.getServerConfig(this.guild.id);
 		} catch (e) {
 			await this.interaction.editReply(
-				`Failed to get server configf for ${displayGuildFormatted(this.guild)}`,
+				`Failed to get server configf for ${displayFormatted(this.guild)}`,
 			);
-			await LOGGER.error(`Failed to get server config for ${displayGuild(this.guild)}: ${e}`);
+			await LOGGER.error(`Failed to get server config for ${display(this.guild)}: ${e}`);
 			return;
 		}
 
 		if (!serverConfig) {
 			await this.interaction.editReply(
-				`Server config not found for ${displayGuildFormatted(this.guild)}`,
+				`Server config not found for ${displayFormatted(this.guild)}`,
 			);
-			await LOGGER.error(`Server config not found for ${displayGuild(this.guild)}`);
+			await LOGGER.error(`Server config not found for ${display(this.guild)}`);
 			return;
 		}
 
@@ -273,16 +269,14 @@ class ConfigCommandHandler {
 				return Array.from(userMap.values()).filter((user) => user !== null) as User[];
 			} catch (e) {
 				await LOGGER.error(
-					`Failed to fetch discord users from ID to create a serverconfig embed for ${displayGuild(
+					`Failed to fetch discord users from ID to create a serverconfig embed for ${display(
 						this.guild,
 					)}: ${e}`,
 				);
 				return [];
 			}
 		} catch (e) {
-			await LOGGER.error(
-				`Failed to get users for ${displayGuild(this.guild)} from the database: ${e}`,
-			);
+			await LOGGER.error(`Failed to get users for ${display(this.guild)} from the database: ${e}`);
 			return [];
 		}
 	}

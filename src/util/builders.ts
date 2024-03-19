@@ -14,7 +14,7 @@ import {
 } from '../database/model/ServerConfigModelController';
 import type { ExtendedInteraction } from '../handler/types';
 import type { BroadcastType } from './broadcast';
-import { displayUserFormatted } from './discord';
+import { displayFormatted } from './format';
 
 export class InfoEmbedBuilder extends EmbedBuilder {
 	constructor(user: User, data?: EmbedData | APIEmbed) {
@@ -61,7 +61,7 @@ export function buildServerConfigEmbed(options: {
 			},
 			{
 				name: 'Whitelisted Admins',
-				value: users.map((user) => displayUserFormatted(user)).join('\n'),
+				value: users.map((user) => displayFormatted(user)).join('\n'),
 			},
 			{
 				name: 'Log Channel',

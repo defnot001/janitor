@@ -10,9 +10,6 @@ import {
 	type Snowflake,
 	TextChannel,
 	type User,
-	escapeMarkdown,
-	inlineCode,
-	time,
 } from 'discord.js';
 import type { ExtendedInteraction } from '../handler/types';
 import { LOGGER } from './logger';
@@ -138,45 +135,4 @@ export async function getTextChannelByID(
 		await LOGGER.error(`An error occurred while fetching channel with ID ${id}: ${e}`);
 		return null;
 	}
-}
-
-/**
- * Returns the user's global name in the format `username (123456789012345678)`
- * Markdown is escaped and the user's ID is in an inline Codeblock.
- * For logging purposes, use `displayUser()` instead.
- */
-export function displayUserFormatted(user: User): string {
-	return `${escapeMarkdown(user.globalName ?? user.username)} (${inlineCode(user.id)})`;
-}
-
-/**
- * Returns the user's global name in the format `username (123456789012345678)`
- * For displaying to the user in discord, use `displayUserFormatted()` instead.
- */
-export function displayUser(user: User): string {
-	return `${user.globalName ?? user.username} (${user.id})`;
-}
-
-/**
- * Returns the guild's name in the format `guildname (123456789012345678)`
- * Markdown is escaped and the guild's ID is in an inline Codeblock.
- * For logging purposes, use `displayGuild()` instead.
- */
-export function displayGuild(guild: Guild): string {
-	return `${guild.name} (${guild.id})`;
-}
-
-/**
- * Returns the guild's name in the format `guildname (123456789012345678)`
- * For displaying to the user in discord, use `displayGuildFormatted()` instead.
- */
-export function displayGuildFormatted(guild: Guild): string {
-	return `${escapeMarkdown(guild.name)} (${inlineCode(guild.id)})`;
-}
-
-/**
- * Returns a formatted discord timestamp in the format fulldate (relative)`.
- */
-export function displayDateTimeFormatted(dateTime: Date): string {
-	return `${time(dateTime, 'D')}\n(${time(dateTime, 'R')})`;
 }

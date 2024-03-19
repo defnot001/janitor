@@ -24,17 +24,10 @@ import type { ExtendedInteraction } from '../handler/types';
 import { Screenshot } from '../util/attachments';
 import { type BroadcastType, Broadcaster } from '../util/broadcast';
 import { InfoEmbedBuilder, getBroadcastEmbedColor } from '../util/builders';
-import {
-	displayDateTimeFormatted,
-	displayGuild,
-	displayGuildFormatted,
-	displayUser,
-	displayUserFormatted,
-	getButtonCollector,
-	getConfirmCancelRow,
-} from '../util/discord';
+import { getButtonCollector, getConfirmCancelRow } from '../util/discord';
 import { LOGGER } from '../util/logger';
 import { checkUserInDatabase } from '../util/permission';
+import { display, displayDateTimeFormatted, displayFormatted } from '../util/format';
 
 export type BadActorSubcommand =
 	| 'report'
@@ -267,9 +260,7 @@ export default new Command({
 		if (ctx.dbUser.user_type !== 'reporter') {
 			await interaction.editReply('You are not allowed create or edit reports.');
 			await LOGGER.warn(
-				`${displayUser(
-					interaction.user,
-				)} attempted to use /${commandName} ${subcommand} in ${displayGuild(
+				`${display(interaction.user)} attempted to use /${commandName} ${subcommand} in ${display(
 					ctx.guild,
 				)} but they are only whitelisted as a listener.`,
 			);
@@ -287,9 +278,7 @@ export default new Command({
 					'Cannot find this user. You either made a typo or the user does not exist (anymore).',
 				);
 				await LOGGER.warn(
-					`${displayUser(
-						interaction.user,
-					)} attempted to use /${commandName} ${subcommand} in ${displayGuild(
+					`${display(interaction.user)} attempted to use /${commandName} ${subcommand} in ${display(
 						ctx.guild,
 					)} but did not provide a valid user.`,
 				);
@@ -299,9 +288,7 @@ export default new Command({
 			if (!badActorType || !['spam', 'impersonation', 'bigotry'].includes(badActorType)) {
 				await interaction.editReply('You must provide a valid type of bad behaviour.');
 				await LOGGER.warn(
-					`${displayUser(
-						interaction.user,
-					)} attempted to use /${commandName} ${subcommand} in ${displayGuild(
+					`${display(interaction.user)} attempted to use /${commandName} ${subcommand} in ${display(
 						ctx.guild,
 					)} but did not provide a valid bad actor type.`,
 				);
@@ -324,7 +311,7 @@ export default new Command({
 			if (!reason.trim().length) {
 				await interaction.editReply('You must provide a reason for deactivating the report.');
 				await LOGGER.warn(
-					`${displayUser(interaction.user)} attempted to deactivate report ${id} in ${displayGuild(
+					`${display(interaction.user)} attempted to deactivate report ${id} in ${display(
 						ctx.guild,
 					)} without providing a reason.`,
 				);
@@ -342,7 +329,7 @@ export default new Command({
 			if (!reason.trim().length) {
 				await interaction.editReply('You must provide a reason for deactivating the report.');
 				await LOGGER.warn(
-					`${displayUser(interaction.user)} attempted to deactivate report ${id} in ${displayGuild(
+					`${display(interaction.user)} attempted to deactivate report ${id} in ${display(
 						ctx.guild,
 					)} without providing a reason.`,
 				);
@@ -416,9 +403,9 @@ class BadActorCommandHandler {
 		if (badActors.length === 0) {
 			await this.interaction.editReply('There are no bad actors in the database.');
 			await LOGGER.warn(
-				`User ${displayUser(this.interaction.user)} attempted to use /${commandName} ${
+				`User ${display(this.interaction.user)} attempted to use /${commandName} ${
 					this.subcommand
-				} in ${displayGuild(this.guild)} but there are no bad actors in the database.`,
+				} in ${display(this.guild)} but there are no bad actors in the database.`,
 			);
 			return;
 		}
@@ -432,9 +419,9 @@ class BadActorCommandHandler {
 				'Cannot find this user. You either made a typo or the user does not exist (anymore).',
 			);
 			await LOGGER.warn(
-				`${displayUser(this.interaction.user)} attempted to use /${commandName} ${
+				`${display(this.interaction.user)} attempted to use /${commandName} ${
 					this.subcommand
-				} in ${displayGuild(this.guild)} but did not provide a valid user.`,
+				} in ${display(this.guild)} but did not provide a valid user.`,
 			);
 			return;
 		}
@@ -452,13 +439,13 @@ class BadActorCommandHandler {
 		}
 
 		if (badActors.length === 0) {
-			await this.interaction.editReply(`${displayUserFormatted(args.user)} has no entries.`);
+			await this.interaction.editReply(`${displayFormatted(args.user)} has no entries.`);
 			return;
 		}
 
 		if (badActors.length > 10) {
 			await this.interaction.editReply(
-				`${displayUserFormatted(args.user)} has too many entries to display.`,
+				`${displayFormatted(args.user)} has too many entries to display.`,
 			);
 			return;
 		}
@@ -475,9 +462,9 @@ class BadActorCommandHandler {
 		if (!badActor) {
 			await this.interaction.editReply('This entry does not exist.');
 			await LOGGER.warn(
-				`User ${displayUser(this.interaction.user)} attempted to use /${commandName} ${
+				`User ${display(this.interaction.user)} attempted to use /${commandName} ${
 					this.subcommand
-				} in ${displayGuild(this.guild)} to display the entry ID ${
+				} in ${display(this.guild)} to display the entry ID ${
 					args.id
 				} but this entry does not exist.`,
 			);
@@ -499,9 +486,9 @@ class BadActorCommandHandler {
 
 		if (activeCase) {
 			await LOGGER.warn(
-				`User ${displayUser(this.interaction.user)} attempted to report user ${displayUser(
+				`User ${display(this.interaction.user)} attempted to report user ${display(
 					badActorUser,
-				)} in ${displayGuild(this.guild)} but this user already has an active case.`,
+				)} in ${display(this.guild)} but this user already has an active case.`,
 			);
 			await this.sendBadActorEmbeds([activeCase], 'This user already has an active case.');
 			return;
@@ -510,9 +497,9 @@ class BadActorCommandHandler {
 		if (!attachment && !explanation) {
 			await this.interaction.editReply('You must provide a screenshot or an explanation.');
 			await LOGGER.warn(
-				`${displayUser(this.interaction.user)} attempted to use /${commandName} ${
+				`${display(this.interaction.user)} attempted to use /${commandName} ${
 					this.subcommand
-				} in ${displayGuild(this.guild)} but did not provide a screenshot or an explanation.`,
+				} in ${display(this.guild)} but did not provide a screenshot or an explanation.`,
 			);
 			return;
 		}
@@ -552,9 +539,9 @@ class BadActorCommandHandler {
 		if (!dbBadActor.is_active) {
 			await this.interaction.editReply('This entry is already deactivated.');
 			await LOGGER.warn(
-				`User ${displayUser(this.interaction.user)} attempted to deactivate bad actor ${
+				`User ${display(this.interaction.user)} attempted to deactivate bad actor ${
 					args.databaseID
-				} in ${displayGuild(this.guild)} but this entry is already deactivated.`,
+				} in ${display(this.guild)} but this entry is already deactivated.`,
 			);
 			return;
 		}
@@ -574,9 +561,9 @@ class BadActorCommandHandler {
 		}
 
 		LOGGER.info(
-			`${displayUser(this.interaction.user)} deactivated bad actor ${
-				args.databaseID
-			} in ${displayGuild(this.guild)}.`,
+			`${display(this.interaction.user)} deactivated bad actor ${args.databaseID} in ${display(
+				this.guild,
+			)}.`,
 		);
 
 		await this.sendBadActorEmbeds([deactivatedBadActor], 'This entry has been deactivated.');
@@ -594,9 +581,9 @@ class BadActorCommandHandler {
 		if (dbBadActor.is_active) {
 			await this.interaction.editReply('This entry is already activated.');
 			await LOGGER.warn(
-				`User ${displayUser(this.interaction.user)} attempted to reactivate bad actor ${
+				`User ${display(this.interaction.user)} attempted to reactivate bad actor ${
 					args.databaseID
-				} in ${displayGuild(this.guild)} but this entry is already activated.`,
+				} in ${display(this.guild)} but this entry is already activated.`,
 			);
 			return;
 		}
@@ -616,9 +603,9 @@ class BadActorCommandHandler {
 		}
 
 		LOGGER.info(
-			`${displayUser(this.interaction.user)} reactivated bad actor ${
+			`${displayFormatted(this.interaction.user)} reactivated bad actor ${
 				args.databaseID
-			} in ${displayGuild(this.guild)}.`,
+			} in ${display(this.guild)}.`,
 		);
 
 		await this.sendBadActorEmbeds([reactivatedBadActor], 'This entry has been reactivated.');
@@ -671,9 +658,9 @@ class BadActorCommandHandler {
 		}
 
 		LOGGER.info(
-			`${displayUser(this.interaction.user)} added a screenshot to bad actor ${
+			`${displayFormatted(this.interaction.user)} added a screenshot to bad actor ${
 				args.databaseID
-			} in ${displayGuild(this.guild)}.`,
+			} in ${display(this.guild)}.`,
 		);
 
 		await this.sendBadActorEmbeds([updatedBadActor], 'The screenshot has been added.');
@@ -734,9 +721,9 @@ class BadActorCommandHandler {
 		}
 
 		LOGGER.info(
-			`${displayUser(this.interaction.user)} replaced the screenshot for bad actor with ID ${
+			`${display(this.interaction.user)} replaced the screenshot for bad actor with ID ${
 				args.databaseID
-			} in ${displayGuild(this.guild)}.`,
+			} in ${display(this.guild)}.`,
 		);
 
 		await this.sendBadActorEmbeds([updatedBadActor], 'The screenshot has been replaced.');
@@ -775,9 +762,9 @@ class BadActorCommandHandler {
 		}
 
 		LOGGER.info(
-			`${displayUser(this.interaction.user)} added or updated an explanation to bad actor ${
+			`${display(this.interaction.user)} added or updated an explanation to bad actor ${
 				args.databaseID
-			} in ${displayGuild(this.guild)}.`,
+			} in ${display(this.guild)}.`,
 		);
 
 		await this.sendBadActorEmbeds([updatedBadActor], 'The explanation has been added or updated.');
@@ -818,10 +805,10 @@ class BadActorCommandHandler {
 			return await BadActorModelController.hasBadActorActiveCase(user.id);
 		} catch (e) {
 			await this.interaction.editReply(
-				`Failed to get the active case for ${displayUserFormatted(user)} from the database.`,
+				`Failed to get the active case for ${displayFormatted(user)} from the database.`,
 			);
 			await LOGGER.error(
-				`Failed to get the active case for ${displayUser(user)} from the database: ${e}`,
+				`Failed to get the active case for ${display(user)} from the database: ${e}`,
 			);
 			return null;
 		}
@@ -899,23 +886,21 @@ class BadActorCommandHandler {
 			explanation: explanation ?? null,
 		}).catch(async (e) => {
 			await LOGGER.error(
-				`Failed to create a bad actor entry for ${displayUser(badActorUser)} in the database: ${e}`,
+				`Failed to create a bad actor entry for ${display(badActorUser)} in the database: ${e}`,
 			);
 		});
 
 		if (!dbBadActor) {
 			await this.interaction.editReply(
-				`Failed to create a bad actor entry for ${displayUserFormatted(
-					badActorUser,
-				)} in the database.`,
+				`Failed to create a bad actor entry for ${displayFormatted(badActorUser)} in the database.`,
 			);
 			return;
 		}
 
 		LOGGER.info(
-			`User ${displayUser(this.interaction.user)} reported user ${displayUser(
+			`User ${display(this.interaction.user)} reported user ${display(
 				badActorUser,
-			)} as a bad actor in ${displayGuild(this.guild)}.`,
+			)} as a bad actor in ${display(this.guild)}.`,
 		);
 
 		await Broadcaster.broadcast({
@@ -979,7 +964,7 @@ export async function buildBadActorEmbed(options: {
 		});
 
 	const displayCreationGuild = creationGuild
-		? displayGuildFormatted(creationGuild)
+		? displayFormatted(creationGuild)
 		: inlineCode(dbBadActor.originally_created_in);
 
 	const embedTitle =

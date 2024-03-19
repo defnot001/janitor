@@ -3,8 +3,8 @@ import { botConfig } from '../config';
 import { AdminModelController } from '../database/model/AdminModelController';
 import { type DbUser, UserModelController } from '../database/model/UserModelController';
 import type { ExtendedInteraction } from '../handler/types';
-import { displayGuild, displayUser } from './discord';
 import { LOGGER } from './logger';
+import { display } from './format';
 
 /**
  * Checks if the user has permission to use the command by checking if the user exists in the users table in the database.
@@ -29,7 +29,7 @@ export async function checkUserInDatabase(options: {
 
 		if (!dbUser) {
 			await LOGGER.warn(
-				`User ${displayUser(interaction.user)} attempted to use /${commandName} in ${displayGuild(
+				`User ${display(interaction.user)} attempted to use /${commandName} in ${display(
 					guild,
 				)} but the user does not exist in the database.`,
 			);
@@ -65,7 +65,7 @@ export async function checkAdminInDatabase(options: {
 	try {
 		if (!(await AdminModelController.isAdmin(interaction.user.id))) {
 			await LOGGER.warn(
-				`${displayUser(interaction.user)} attempted to use /${commandName} in ${displayGuild(
+				`${display(interaction.user)} attempted to use /${commandName} in ${display(
 					guild,
 				)} without permission.`,
 			);
@@ -100,9 +100,7 @@ export async function isInteractionInAdminServer(options: {
 
 	if (guild.id !== botConfig.adminServerID) {
 		await LOGGER.warn(
-			`${displayUser(
-				interaction.user,
-			)} attempted to use /${commandName} outside of the admin server.`,
+			`${display(interaction.user)} attempted to use /${commandName} outside of the admin server.`,
 		);
 		await interaction.editReply('This command can only be used in the admin server.');
 		return false;
@@ -127,7 +125,7 @@ export async function isInteractionInUsersAllowedServers(options: {
 
 	if (!dbUser.servers.includes(guild.id)) {
 		await LOGGER.warn(
-			`${displayUser(
+			`${display(
 				interaction.user,
 			)} attempted to use /${commandName} outside of their allowed server(s).`,
 		);

@@ -17,15 +17,10 @@ import { Command } from '../handler/classes/Command';
 import type { ExtendedClient } from '../handler/classes/ExtendedClient';
 import type { ExtendedInteraction } from '../handler/types';
 import { InfoEmbedBuilder } from '../util/builders';
-import {
-	displayGuild,
-	displayGuildFormatted,
-	displayUserFormatted,
-	getGuildMap,
-	getUserMap,
-} from '../util/discord';
+import { getGuildMap, getUserMap } from '../util/discord';
 import { LOGGER } from '../util/logger';
 import { checkAdminInDatabase, isInteractionInAdminServer } from '../util/permission';
+import { display, displayFormatted } from '../util/format';
 
 const commandName = 'user';
 
@@ -282,7 +277,7 @@ class UserCommandHandler {
 
 		if (!dbUsers) {
 			await this.interaction.editReply(
-				`Error fetching users for server ${displayGuildFormatted(guild)}`,
+				`Error fetching users for server ${displayFormatted(guild)}`,
 			);
 			return;
 		}
@@ -292,11 +287,11 @@ class UserCommandHandler {
 
 		const userEntries = dbUserIDs.map((id) => {
 			const maybeUser = userMap.get(id) ?? null;
-			return maybeUser ? displayUserFormatted(maybeUser) : inlineCode(id);
+			return maybeUser ? displayFormatted(maybeUser) : inlineCode(id);
 		});
 
 		const listEmbed = new InfoEmbedBuilder(this.interaction.user, {
-			title: `Whitelisted Users for ${displayGuildFormatted(guild)}`,
+			title: `Whitelisted Users for ${displayFormatted(guild)}`,
 			description: userEntries.join('\n'),
 		});
 
@@ -311,7 +306,7 @@ class UserCommandHandler {
 
 		if (!dbUser) {
 			await this.interaction.editReply(
-				`User ${displayUserFormatted(args.user)} is not on the whitelist.`,
+				`User ${displayFormatted(args.user)} is not on the whitelist.`,
 			);
 			return;
 		}
@@ -320,7 +315,7 @@ class UserCommandHandler {
 
 		const displayGuilds = dbUser.servers.map((guildID) => {
 			const userGuild = userGuildsMap.get(guildID) ?? null;
-			return userGuild ? displayGuildFormatted(userGuild) : inlineCode(guildID);
+			return userGuild ? displayFormatted(userGuild) : inlineCode(guildID);
 		});
 
 		const infoEmbed = this.createUserEmbed({
@@ -351,7 +346,7 @@ class UserCommandHandler {
 		const displayGuilds = args.guildIDs
 			// we can safely assume that the guilds are in the map since we checked it
 			// biome-ignore lint/style/noNonNullAssertion: <explanation>
-			.map((guildID) => displayGuildFormatted(checkedGuildMap.get(guildID)!));
+			.map((guildID) => displayFormatted(checkedGuildMap.get(guildID)!));
 
 		const infoEmbed = this.createUserEmbed({
 			dbUser: createdUser,
@@ -365,7 +360,11 @@ class UserCommandHandler {
 		});
 
 		try {
-			await this.handleServerConfigUpdates({ dbUser: createdUser, newServerIDs: args.guildIDs });
+			await this.handleServerConfigUpdates({
+				newServerIDs: args.guildIDs,
+				oldServerIDs: [],
+			});
+			console.debug('Server config updates handled');
 		} catch (e) {
 			await LOGGER.error(`Error updating server configs: ${e}`);
 			await this.interaction.followUp('An error occurred while updating server configs.');
@@ -395,7 +394,7 @@ class UserCommandHandler {
 		const displayGuilds = args.guildIDs
 			// we can safely assume that the guilds are in the map since we checked it
 			// biome-ignore lint/style/noNonNullAssertion: <explanation>
-			.map((guildID) => displayGuildFormatted(checkedGuildMap.get(guildID)!));
+			.map((guildID) => displayFormatted(checkedGuildMap.get(guildID)!));
 
 		const infoEmbed = this.createUserEmbed({
 			dbUser: updatedUser,
@@ -409,7 +408,10 @@ class UserCommandHandler {
 		});
 
 		try {
-			await this.handleServerConfigUpdates({ dbUser: updatedUser, newServerIDs: args.guildIDs });
+			await this.handleServerConfigUpdates({
+				oldServerIDs: updatedUser.servers,
+				newServerIDs: args.guildIDs,
+			});
 		} catch (e) {
 			await LOGGER.error(`Error updating server configs: ${e}`);
 			await this.interaction.followUp('An error occurred while updating server configs.');
@@ -433,16 +435,8 @@ class UserCommandHandler {
 			return;
 		}
 
-		// this should never happen, but just in case
-		if (deletedUser.servers.length === 0) {
-			await this.interaction.editReply(
-				`Removed User ${displayUserFormatted(args.user)} from whitelist.`,
-			);
-			return;
-		}
-
 		try {
-			await this.handleServerConfigUpdates({ dbUser: deletedUser, newServerIDs: [] });
+			await this.handleServerConfigUpdates({ oldServerIDs: deletedUser.servers, newServerIDs: [] });
 		} catch (e) {
 			await LOGGER.error(`Error updating server configs: ${e}`);
 			await this.interaction.followUp('An error occurred while updating server configs.');
@@ -493,11 +487,9 @@ class UserCommandHandler {
 			const user = userMap.get(id) ?? null;
 			const guilds = servers.map((guildID) => guildMap.get(guildID) ?? guildID);
 
-			const displayUser = user ? displayUserFormatted(user) : inlineCode(id);
+			const displayUser = user ? displayFormatted(user) : inlineCode(id);
 			const displayGuilds = guilds
-				.map((guild) =>
-					typeof guild === 'string' ? inlineCode(guild) : displayGuildFormatted(guild),
-				)
+				.map((guild) => (typeof guild === 'string' ? inlineCode(guild) : displayFormatted(guild)))
 				.join(', ');
 
 			entries.push(`${displayUser}\n${displayGuilds}`);
@@ -508,7 +500,7 @@ class UserCommandHandler {
 
 	private createUserEmbed(options: { user: User; dbUser: DbUser; displayGuilds: string[] }) {
 		return new InfoEmbedBuilder(this.interaction.user, {
-			title: `User Info for ${displayUserFormatted(options.user)}`,
+			title: `User Info for ${displayFormatted(options.user)}`,
 			fields: [
 				{
 					name: 'Servers',
@@ -561,9 +553,11 @@ class UserCommandHandler {
 		}
 	}
 
-	private async handleServerConfigUpdates(options: { dbUser: DbUser; newServerIDs: Snowflake[] }) {
-		const { dbUser, newServerIDs } = options;
-		const { servers: oldServerIDs } = dbUser;
+	private async handleServerConfigUpdates(options: {
+		newServerIDs: Snowflake[];
+		oldServerIDs: Snowflake[];
+	}) {
+		const { newServerIDs, oldServerIDs } = options;
 
 		const serversToAdd = newServerIDs.filter((id) => !oldServerIDs.includes(id));
 		const serversToRemove = oldServerIDs.filter((id) => !newServerIDs.includes(id));
@@ -584,17 +578,29 @@ class UserCommandHandler {
 		});
 
 		serversToRemove.map(async (guildID) => {
-			const deleted = await ServerConfigModelController.deleteServerConfigIfNeeded(guildID);
+			const deleted = await ServerConfigModelController.deleteServerConfigIfNeeded(guildID).catch(
+				async (e) => {
+					await LOGGER.error(`Error deleting server config: ${e}`);
+					return null;
+				},
+			);
+
 			const displayGuild = await this.getDisplayMaybeGuild(guildID);
 
-			if (deleted) {
+			if (deleted === null) {
+				await LOGGER.error(`Error deleting server config for ${displayGuild}.`);
+				return;
+			}
+
+			if (deleted === true) {
 				const message = `Deleted server config for ${displayGuild} because it's no longer in use.`;
 
 				LOGGER.info(message);
 				await this.interaction.followUp(message);
-			} else {
-				LOGGER.debug(`Server config for ${displayGuild} still in use. Skipping deletion.`);
+				return;
 			}
+
+			LOGGER.debug(`Server config for ${displayGuild} still in use. Skipping deletion.`);
 		});
 	}
 
@@ -602,7 +608,7 @@ class UserCommandHandler {
 		return this.client.guilds
 			.fetch(guildID)
 			.then((guild) => {
-				return displayGuild(guild);
+				return display(guild);
 			})
 			.catch((e) => {
 				LOGGER.error(`Error fetching guild: ${e}`);

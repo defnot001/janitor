@@ -3,7 +3,7 @@ import { Command } from '../handler/classes/Command';
 import type { ExtendedClient } from '../handler/classes/ExtendedClient';
 import type { ExtendedInteraction } from '../handler/types';
 import { InfoEmbedBuilder } from '../util/builders';
-import { displayUserFormatted } from '../util/discord';
+import { displayFormatted } from '../util/format';
 import { LOGGER } from '../util/logger';
 import { checkUserInDatabase } from '../util/permission';
 
@@ -27,7 +27,7 @@ async function handleAdminList(interaction: ExtendedInteraction, client: Extende
 		const adminEntries = await Promise.all(
 			admins.map(async (a) => {
 				const user = await client.users.fetch(a.id);
-				return displayUserFormatted(user);
+				return displayFormatted(user);
 			}),
 		);
 

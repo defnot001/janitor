@@ -10,10 +10,10 @@ import type { ExtendedClient } from '../handler/classes/ExtendedClient';
 import type { ExtendedInteraction } from '../handler/types';
 import { Screenshot } from '../util/attachments';
 import { type InfoEmbedBuilder, buildServerConfigEmbed } from '../util/builders';
-import { displayUser, displayUserFormatted } from '../util/discord';
 import { getTextChannelByID, getUserMap } from '../util/discord';
 import { LOGGER } from '../util/logger';
 import { checkAdminInDatabase, isInteractionInAdminServer } from '../util/permission';
+import { display, displayFormatted } from '../util/format';
 
 const commandName = 'adminconfig';
 
@@ -179,13 +179,13 @@ class AdminconfigCommandHandler {
 
 			await this.interaction.editReply(
 				`Bad actor with ${
-					deletedUser ? displayUserFormatted(deletedUser) : deleted.user_id
+					deletedUser ? displayFormatted(deletedUser) : deleted.user_id
 				} has been deleted from the database.`,
 			);
 
 			LOGGER.info(
-				`${displayUser(this.interaction.user)} deleted bad actor ${
-					deletedUser ? displayUserFormatted(deletedUser) : deleted.user_id
+				`${display(this.interaction.user)} deleted bad actor ${
+					deletedUser ? display(deletedUser) : deleted.user_id
 				} from the database.`,
 			);
 		} catch (e) {

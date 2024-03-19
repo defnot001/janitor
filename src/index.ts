@@ -13,7 +13,7 @@ await client.start({
 	commandsPath: projectPaths.commands,
 	eventsPath: projectPaths.events,
 	globalCommands: true,
-	registerCommands: true,
+	registerCommands: false,
 });
 
 export const pgClient = new Client({
