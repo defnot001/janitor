@@ -38,7 +38,7 @@ async function handleAdminList(interaction: ExtendedInteraction, client: Extende
 
 		await interaction.editReply({ embeds: [adminEmbed] });
 	} catch (e) {
-		await LOGGER.error(`Error fetching admins: ${e}`);
+		await LOGGER.error(e, 'Error fetching admins.');
 		await interaction.editReply('Error fetching admins.');
 	}
 }

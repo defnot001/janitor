@@ -11,9 +11,9 @@ import type { ExtendedInteraction } from '../handler/types';
 import { Screenshot } from '../util/attachments';
 import { type InfoEmbedBuilder, buildServerConfigEmbed } from '../util/builders';
 import { getTextChannelByID, getUserMap } from '../util/discord';
+import { display, displayFormatted } from '../util/format';
 import { LOGGER } from '../util/logger';
 import { checkAdminInDatabase, isInteractionInAdminServer } from '../util/permission';
-import { display, displayFormatted } from '../util/format';
 
 const commandName = 'adminconfig';
 
@@ -103,7 +103,7 @@ class AdminconfigCommandHandler {
 			await this.interaction.editReply({ embeds });
 		} catch (e) {
 			await this.interaction.editReply('An error occurred while fetching the server configs.');
-			await LOGGER.error(`An error occurred while fetching the server configs: ${e}`);
+			await LOGGER.error(e, 'An error occurred while fetching the server configs.');
 			return;
 		}
 	}
@@ -122,7 +122,10 @@ class AdminconfigCommandHandler {
 			await this.interaction.editReply(
 				'An error occurred while getting the bad actor from the database.',
 			);
-			await LOGGER.error(`An error occurred while getting the bad actor from the database: ${e}`);
+			await LOGGER.error(
+				e,
+				`An error occurred while getting bad actor with ID ${args.entryID} from the database.`,
+			);
 			return;
 		}
 	}
@@ -157,7 +160,8 @@ class AdminconfigCommandHandler {
 				embeds.push(embed);
 			} catch (e) {
 				await LOGGER.error(
-					`An error occurred while fetching information to build a server config embed for ${dbServerConfig.server_id}: ${e}`,
+					e,
+					`An error occurred while fetching information to build a server config embed for ${dbServerConfig.server_id}.`,
 				);
 				await this.interaction.followUp(
 					`Failed to fetch information to build a server config embed for server ID ${dbServerConfig.server_id}.`,
@@ -189,10 +193,10 @@ class AdminconfigCommandHandler {
 				} from the database.`,
 			);
 		} catch (e) {
-			await this.interaction.editReply(
-				'An error occurred while deleting the user from the database.',
-			);
-			await LOGGER.error(`An error occurred while deleting the user from the database: ${e}`);
+			const errorMessage = `An error occurred while deleting bad actor with entry ID ${args.entryID} from the database.`;
+
+			await this.interaction.editReply(errorMessage);
+			await LOGGER.error(e, errorMessage);
 		}
 	}
 }

@@ -18,9 +18,9 @@ import type { ExtendedClient } from '../handler/classes/ExtendedClient';
 import type { ExtendedInteraction } from '../handler/types';
 import { InfoEmbedBuilder } from '../util/builders';
 import { getGuildMap, getUserMap } from '../util/discord';
+import { display, displayFormatted } from '../util/format';
 import { LOGGER } from '../util/logger';
 import { checkAdminInDatabase, isInteractionInAdminServer } from '../util/permission';
-import { display, displayFormatted } from '../util/format';
 
 const commandName = 'user';
 
@@ -259,7 +259,7 @@ class UserCommandHandler {
 
 	public async handleUserListByServer(args: { guildID: Snowflake }) {
 		const guild = await this.client.guilds.fetch(args.guildID).catch(async (e) => {
-			await LOGGER.error(`Error fetching guild: ${e}`);
+			await LOGGER.error(e, `Error fetching guild ${args.guildID}.`);
 			return null;
 		});
 
@@ -271,7 +271,7 @@ class UserCommandHandler {
 		}
 
 		const dbUsers = await UserModelController.getUsersByServer(args.guildID).catch(async (e) => {
-			await LOGGER.error(`Error fetching users by server: ${e}`);
+			await LOGGER.error(e, `Error fetching users by guild with ID ${args.guildID}.`);
 			return null;
 		});
 
@@ -300,7 +300,7 @@ class UserCommandHandler {
 
 	public async handleUserInfo(args: { user: User }) {
 		const dbUser = await UserModelController.getUser(args.user.id).catch(async (e) => {
-			await LOGGER.error(`Error fetching user from the database: ${e}`);
+			await LOGGER.error(e, `Error fetching ${display(args.user)} from the database.`);
 			return null;
 		});
 
@@ -359,17 +359,10 @@ class UserCommandHandler {
 			embeds: [infoEmbed],
 		});
 
-		try {
-			await this.handleServerConfigUpdates({
-				newServerIDs: args.guildIDs,
-				oldServerIDs: [],
-			});
-			console.debug('Server config updates handled');
-		} catch (e) {
-			await LOGGER.error(`Error updating server configs: ${e}`);
-			await this.interaction.followUp('An error occurred while updating server configs.');
-			return;
-		}
+		await this.handleServerConfigUpdates({
+			newServerIDs: args.guildIDs,
+			oldServerIDs: [],
+		});
 	}
 
 	public async handleUserUpdate(args: { user: User; userType: UserType; guildIDs: Snowflake[] }) {
@@ -382,7 +375,7 @@ class UserCommandHandler {
 			servers: args.guildIDs,
 			user_type: args.userType,
 		}).catch(async (e) => {
-			await LOGGER.error(`Error updating user on whitelist: ${e}`);
+			await LOGGER.error(e, `Error updating ${display(args.user)} in the database.`);
 			await this.interaction.editReply(
 				'An error occurred while updating the user on the whitelist.',
 			);
@@ -407,16 +400,10 @@ class UserCommandHandler {
 			embeds: [infoEmbed],
 		});
 
-		try {
-			await this.handleServerConfigUpdates({
-				oldServerIDs: updatedUser.servers,
-				newServerIDs: args.guildIDs,
-			});
-		} catch (e) {
-			await LOGGER.error(`Error updating server configs: ${e}`);
-			await this.interaction.followUp('An error occurred while updating server configs.');
-			return;
-		}
+		await this.handleServerConfigUpdates({
+			oldServerIDs: updatedUser.servers,
+			newServerIDs: args.guildIDs,
+		});
 	}
 
 	public async handleUserDelete(args: { user: User }) {
@@ -425,7 +412,7 @@ class UserCommandHandler {
 		try {
 			deletedUser = await UserModelController.deleteUser(args.user.id);
 		} catch (e) {
-			await LOGGER.error(`Error deleting user from whitelist: ${e}`);
+			await LOGGER.error(e, `Error deleting ${display(args.user)} from whitelist.`);
 		}
 
 		if (!deletedUser) {
@@ -435,12 +422,7 @@ class UserCommandHandler {
 			return;
 		}
 
-		try {
-			await this.handleServerConfigUpdates({ oldServerIDs: deletedUser.servers, newServerIDs: [] });
-		} catch (e) {
-			await LOGGER.error(`Error updating server configs: ${e}`);
-			await this.interaction.followUp('An error occurred while updating server configs.');
-		}
+		await this.handleServerConfigUpdates({ oldServerIDs: deletedUser.servers, newServerIDs: [] });
 	}
 
 	private async getAllUsers(): Promise<DbUser[] | null> {
@@ -449,7 +431,7 @@ class UserCommandHandler {
 		try {
 			allUsers = await UserModelController.getAllUsers();
 		} catch (e) {
-			await LOGGER.error(`Error fetching all users from the database: ${e}`);
+			await LOGGER.error(e, 'Error fetching all users from the database.');
 			await this.interaction.editReply('Error fetching all users from the database.');
 		}
 
@@ -467,7 +449,7 @@ class UserCommandHandler {
 		try {
 			uniqueServerIDs = await UserModelController.getUniqueServerIDs();
 		} catch (e) {
-			await LOGGER.error(`Error fetching all unique server IDs from the database: ${e}`);
+			await LOGGER.error(e, 'Error fetching all unique server IDs from the database.');
 			await this.interaction.editReply('Error fetching all server IDs from the database.');
 		}
 
@@ -549,7 +531,7 @@ class UserCommandHandler {
 			await LOGGER.warn('User is already on the whitelist.');
 		} else {
 			this.interaction.editReply('An error occurred while adding the user to the whitelist.');
-			await LOGGER.error(`Error adding user to whitelist: ${e}`);
+			await LOGGER.error(e, 'Error adding user to whitelist.');
 		}
 	}
 
@@ -563,8 +545,14 @@ class UserCommandHandler {
 		const serversToRemove = oldServerIDs.filter((id) => !newServerIDs.includes(id));
 
 		serversToAdd.map(async (guildID) => {
-			const result = await ServerConfigModelController.createServerConfigIfNotExists(guildID);
 			const displayGuild = await this.getDisplayMaybeGuild(guildID);
+
+			const result = await ServerConfigModelController.createServerConfigIfNotExists(guildID).catch(
+				async (e) => {
+					await LOGGER.error(e, `Error creating server config for ${displayGuild}.`);
+					return null;
+				},
+			);
 
 			if (result === null) {
 				LOGGER.debug(`Server config for server ${displayGuild} already exists. Skipping creation.`);
@@ -580,7 +568,7 @@ class UserCommandHandler {
 		serversToRemove.map(async (guildID) => {
 			const deleted = await ServerConfigModelController.deleteServerConfigIfNeeded(guildID).catch(
 				async (e) => {
-					await LOGGER.error(`Error deleting server config: ${e}`);
+					await LOGGER.error(e, `Error deleting server config for ${displayGuild}.`);
 					return null;
 				},
 			);
@@ -588,7 +576,7 @@ class UserCommandHandler {
 			const displayGuild = await this.getDisplayMaybeGuild(guildID);
 
 			if (deleted === null) {
-				await LOGGER.error(`Error deleting server config for ${displayGuild}.`);
+				await LOGGER.error(new Error(`Error deleting server config for ${displayGuild}.`));
 				return;
 			}
 
@@ -611,7 +599,7 @@ class UserCommandHandler {
 				return display(guild);
 			})
 			.catch((e) => {
-				LOGGER.error(`Error fetching guild: ${e}`);
+				LOGGER.error(e, `Error fetching guild ${guildID}.`);
 				return inlineCode(guildID);
 			});
 	}

@@ -3,8 +3,8 @@ import { botConfig } from '../config';
 import { AdminModelController } from '../database/model/AdminModelController';
 import { type DbUser, UserModelController } from '../database/model/UserModelController';
 import type { ExtendedInteraction } from '../handler/types';
-import { LOGGER } from './logger';
 import { display } from './format';
+import { LOGGER } from './logger';
 
 /**
  * Checks if the user has permission to use the command by checking if the user exists in the users table in the database.
@@ -39,7 +39,7 @@ export async function checkUserInDatabase(options: {
 
 		return { dbUser, guild };
 	} catch (e) {
-		await LOGGER.error(`Error fetching user: ${e}`);
+		await LOGGER.error(e, `Error fetching user ${display(interaction.user)} from the database.`);
 		await interaction.editReply('Error fetching user.');
 		return null;
 	}
@@ -73,7 +73,7 @@ export async function checkAdminInDatabase(options: {
 			return false;
 		}
 	} catch (e) {
-		await LOGGER.error(`Error fetching admin: ${e}`);
+		await LOGGER.error(e, `Error fetching admin ${display(interaction.user)} from the database.`);
 		await interaction.editReply('Error fetching admin.');
 		return false;
 	}

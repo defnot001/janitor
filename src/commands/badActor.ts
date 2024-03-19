@@ -25,9 +25,9 @@ import { Screenshot } from '../util/attachments';
 import { type BroadcastType, Broadcaster } from '../util/broadcast';
 import { InfoEmbedBuilder, getBroadcastEmbedColor } from '../util/builders';
 import { getButtonCollector, getConfirmCancelRow } from '../util/discord';
+import { display, displayDateTimeFormatted, displayFormatted } from '../util/format';
 import { LOGGER } from '../util/logger';
 import { checkUserInDatabase } from '../util/permission';
-import { display, displayDateTimeFormatted, displayFormatted } from '../util/format';
 
 export type BadActorSubcommand =
 	| 'report'
@@ -391,7 +391,7 @@ class BadActorCommandHandler {
 
 	public async handleDisplayLatest(args: { amount: number }): Promise<void> {
 		const badActors = await BadActorModelController.getBadActors(args.amount).catch(async (e) => {
-			await LOGGER.error(`Failed to get bad actors from the database: ${e}`);
+			await LOGGER.error(e, 'Failed to get bad actors from the database');
 			return null;
 		});
 
@@ -414,7 +414,9 @@ class BadActorCommandHandler {
 	}
 
 	public async handleDisplayByUser(args: { user: User | null }): Promise<void> {
-		if (!args.user) {
+		const user = args.user;
+
+		if (!user) {
 			await this.interaction.editReply(
 				'Cannot find this user. You either made a typo or the user does not exist (anymore).',
 			);
@@ -426,9 +428,12 @@ class BadActorCommandHandler {
 			return;
 		}
 
-		const badActors = await BadActorModelController.getBadActorsBySnowflake(args.user.id).catch(
+		const badActors = await BadActorModelController.getBadActorsBySnowflake(user.id).catch(
 			async (e) => {
-				await LOGGER.error(`Failed to get bad actors from the database: ${e}`);
+				await LOGGER.error(
+					e,
+					`Failed to get bad actor entries for ${display(user)} from the database`,
+				);
 				return null;
 			},
 		);
@@ -439,13 +444,13 @@ class BadActorCommandHandler {
 		}
 
 		if (badActors.length === 0) {
-			await this.interaction.editReply(`${displayFormatted(args.user)} has no entries.`);
+			await this.interaction.editReply(`${displayFormatted(user)} has no entries.`);
 			return;
 		}
 
 		if (badActors.length > 10) {
 			await this.interaction.editReply(
-				`${displayFormatted(args.user)} has too many entries to display.`,
+				`${displayFormatted(user)} has too many entries to display.`,
 			);
 			return;
 		}
@@ -455,7 +460,7 @@ class BadActorCommandHandler {
 
 	public async handleDisplayById(args: { id: number }): Promise<void> {
 		const badActor = await BadActorModelController.getBadActorById(args.id).catch(async (e) => {
-			await LOGGER.error(`Failed to get the bad actor from the database: ${e}`);
+			await LOGGER.error(e, `Failed to get bad actor entry with ID ${args.id} from the database.`);
 			return null;
 		});
 
@@ -517,7 +522,7 @@ class BadActorCommandHandler {
 		if (!collector) {
 			await this.interaction.editReply('Failed to create a button collector. Aborting report.');
 			await LOGGER.error(
-				`Failed to create a button collector for /${commandName} ${this.subcommand}.`,
+				new Error(`Failed to create a button collector for /${commandName} ${this.subcommand}.`),
 			);
 			return;
 		}
@@ -551,7 +556,7 @@ class BadActorCommandHandler {
 			explanation: args.reason,
 			last_changed_by: this.interaction.user.id,
 		}).catch(async (e) => {
-			await LOGGER.error(`Failed to deactivate the entry with ID ${args.databaseID}: ${e}`);
+			await LOGGER.error(e, `Failed to deactivate the entry with ID ${args.databaseID}`);
 			return null;
 		});
 
@@ -593,7 +598,7 @@ class BadActorCommandHandler {
 			explanation: args.reason,
 			last_changed_by: this.interaction.user.id,
 		}).catch(async (e) => {
-			await LOGGER.error(`Failed to reactivate the entry with ID ${args.databaseID}: ${e}`);
+			await LOGGER.error(e, `Failed to reactivate the entry with ID ${args.databaseID}.`);
 			return null;
 		});
 
@@ -646,9 +651,7 @@ class BadActorCommandHandler {
 			screenshotPath,
 			this.interaction.user.id,
 		).catch(async (e) => {
-			await LOGGER.error(
-				`Failed to update the screenshot for entry with ID ${args.databaseID}: ${e}`,
-			);
+			await LOGGER.error(e, `Failed to update the screenshot for entry with ID ${args.databaseID}`);
 			return null;
 		});
 
@@ -698,7 +701,7 @@ class BadActorCommandHandler {
 			screenshotPath = screenshot.path;
 		} catch (e) {
 			await this.interaction.editReply('Failed to save screenshot.');
-			await LOGGER.error(`Failed to save screenshot: ${e}`);
+			await LOGGER.error(e, 'Failed to save screenshot.');
 			return;
 		}
 
@@ -710,7 +713,8 @@ class BadActorCommandHandler {
 			this.interaction.user.id,
 		).catch(async (e) => {
 			await LOGGER.error(
-				`Failed to update the screenshot for entry with ID ${args.databaseID}: ${e}`,
+				e,
+				`Failed to update the screenshot for entry with ID ${args.databaseID}.`,
 			);
 			return null;
 		});
@@ -751,7 +755,8 @@ class BadActorCommandHandler {
 			this.interaction.user.id,
 		).catch(async (e) => {
 			await LOGGER.error(
-				`Failed to update the explanation for entry with ID ${args.databaseID}: ${e}`,
+				e,
+				`Failed to update the explanation for entry with ID ${args.databaseID}.`,
 			);
 			return null;
 		});
@@ -796,7 +801,7 @@ class BadActorCommandHandler {
 			}
 		} catch (e) {
 			await this.interaction.editReply('Failed to send the bad actor embed.');
-			await LOGGER.error(`Failed to send the bad actor embed: ${e}`);
+			await LOGGER.error(e, 'Failed to send the bad actor embed.');
 		}
 	}
 
@@ -808,7 +813,8 @@ class BadActorCommandHandler {
 				`Failed to get the active case for ${displayFormatted(user)} from the database.`,
 			);
 			await LOGGER.error(
-				`Failed to get the active case for ${display(user)} from the database: ${e}`,
+				e,
+				`Failed to get the active case for ${display(user)} from the database.`,
 			);
 			return null;
 		}
@@ -886,7 +892,8 @@ class BadActorCommandHandler {
 			explanation: explanation ?? null,
 		}).catch(async (e) => {
 			await LOGGER.error(
-				`Failed to create a bad actor entry for ${display(badActorUser)} in the database: ${e}`,
+				e,
+				`Failed to create a bad actor entry for ${display(badActorUser)} in the database.`,
 			);
 		});
 
@@ -924,7 +931,7 @@ class BadActorCommandHandler {
 			return screenshot.path;
 		} catch (e) {
 			await this.interaction.editReply('Failed to save screenshot.');
-			await LOGGER.error(`Failed to save screenshot: ${e}`);
+			await LOGGER.error(e, 'Failed to save screenshot.');
 			return null;
 		}
 	}
@@ -934,7 +941,7 @@ class BadActorCommandHandler {
 			return await BadActorModelController.getBadActorById(databaseID);
 		} catch (e) {
 			await this.interaction.editReply('This entry does not exist.');
-			await LOGGER.error(`Failed to get the bad actor from the database: ${e}`);
+			await LOGGER.error(e, 'Failed to get the bad actor from the database.');
 			return null;
 		}
 	}
@@ -1034,7 +1041,7 @@ export async function buildBadActorEmbed(options: {
 				path.join(projectPaths.sources, '..', 'screenshots', dbBadActor.screenshot_proof),
 			);
 		} catch (e) {
-			await LOGGER.error(`Failed to create attachment for bad actor ${dbBadActor.id}: ${e}`);
+			await LOGGER.error(e, `Failed to create attachment for bad actor ${dbBadActor.id}.`);
 		}
 	}
 

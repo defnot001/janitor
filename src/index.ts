@@ -23,7 +23,7 @@ export const pgClient = new Client({
 pgClient
 	.connect()
 	.then(() => LOGGER.info('Connected to the database.'))
-	.catch(async (err) => await LOGGER.error(err.toString()));
+	.catch(async (e) => await LOGGER.error(e));
 
 process.on('SIGINT', () => {
 	pgClient.connect();

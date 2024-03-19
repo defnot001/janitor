@@ -5,6 +5,10 @@ import { botConfig } from '../config';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
+type ErrorWithMessage = {
+	message: string;
+};
+
 const colors = {
 	reset: '\x1b[0m',
 	debug: '\x1b[36m', // Cyan for better visibility
@@ -38,11 +42,21 @@ export abstract class LOGGER {
 		}
 	}
 
-	public static async error(message: string): Promise<void> {
-		LOGGER.log(message, 'error');
+	public static async error(error: unknown, message?: string): Promise<void> {
+		const cleanError = LOGGER.getCleanError(error);
+		const errorMessage = message ? `${message}: ${cleanError.message}` : cleanError.message;
+
+		LOGGER.log(errorMessage, 'error');
 
 		try {
-			const embed = LOGGER.buildLogEmbed(message, 'error');
+			const embed = LOGGER.buildLogEmbed(errorMessage, 'error');
+			// Optionally, add the stack trace or other error details if available and desired
+			if (cleanError.stack) {
+				embed.addFields({
+					name: 'Stack Trace',
+					value: `\`\`\`${cleanError.stack}\`\`\``,
+				});
+			}
 			await errorLog?.send({ content: userMention(botConfig.superuser), embeds: [embed] });
 		} catch (e) {
 			LOGGER.log(`Failed to send error log to errorLog channel: ${e}`, 'error');
@@ -96,5 +110,33 @@ export abstract class LOGGER {
 			default:
 				return 'UNKNOWN'; // Fallback case
 		}
+	}
+
+	private static getCleanError(maybeError: unknown): Error {
+		if (maybeError instanceof Error) {
+			return maybeError;
+		}
+
+		if (LOGGER.isErrorWithMessage(maybeError)) {
+			return new Error(maybeError.message, { cause: maybeError });
+		}
+
+		try {
+			return new Error(JSON.stringify(maybeError));
+		} catch {
+			// fallback in case there's an error stringifying the maybeError
+			// like with circular references for example.
+			return new Error(String(maybeError));
+		}
+	}
+
+	private static isErrorWithMessage(error: unknown): error is ErrorWithMessage {
+		return (
+			typeof error === 'object' &&
+			error !== null &&
+			'message' in error &&
+			// biome-ignore lint/complexity/useLiteralKeys: <explanation>
+			typeof (error as Record<string, unknown>)['message'] === 'string'
+		);
 	}
 }

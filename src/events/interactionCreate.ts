@@ -1,26 +1,31 @@
-import type { CommandInteractionOptionResolver, Snowflake } from 'discord.js';
+import {
+	type ChatInputCommandInteraction,
+	type CommandInteractionOptionResolver,
+	type Snowflake,
+	TextChannel,
+} from 'discord.js';
 import { client } from '..';
 import { Event } from '../handler/classes/Event';
 import type { ExtendedInteraction } from '../handler/types';
-import { LOGGER } from '../util/logger';
 import { display } from '../util/format';
+import { LOGGER } from '../util/logger';
 
 export default new Event('interactionCreate', async (interaction) => {
 	if (!interaction.isChatInputCommand()) {
 		return;
 	}
-
 	const { commandName } = interaction;
-	const username = interaction.user.globalName ?? interaction.user.username;
 
-	const channelNameAddon = await getChannelNameAddon(interaction.channelId);
-	const guildNameAddon = ` (${interaction.guild?.name})`;
+	const channelAddon = await getChannelNameAddon(interaction.channelId);
+	const guildAddon = getGuildAddon(interaction);
 
 	const command = client.commands.get(commandName);
 
 	if (!command) {
 		await LOGGER.error(
-			`${username} used /${commandName} ${channelNameAddon} but the command does not exist.`,
+			`${display(
+				interaction.user,
+			)} used /${commandName}${channelAddon}${guildAddon} but the command does not exist.`,
 		);
 
 		await interaction.reply({
@@ -31,9 +36,7 @@ export default new Event('interactionCreate', async (interaction) => {
 		return;
 	}
 
-	LOGGER.info(
-		`${display(interaction.user)} used /${commandName}${channelNameAddon}${guildNameAddon}.`,
-	);
+	LOGGER.info(`${display(interaction.user)} used /${commandName}${channelAddon}${guildAddon}.`);
 
 	try {
 		return command.execute({
@@ -42,7 +45,10 @@ export default new Event('interactionCreate', async (interaction) => {
 			interaction: interaction as ExtendedInteraction,
 		});
 	} catch (e) {
-		await LOGGER.error(`An error occurred while executing ${commandName}: ${e}`);
+		await LOGGER.error(
+			e,
+			`An uncaught error occurred while executing /${commandName}${channelAddon}${guildAddon}.`,
+		);
 
 		await interaction.reply({
 			content: `There was an error trying to execute the interaction: ${interaction.commandName}!`,
@@ -56,8 +62,16 @@ export default new Event('interactionCreate', async (interaction) => {
 async function getChannelNameAddon(channelID: Snowflake) {
 	const channel = await client.channels.fetch(channelID);
 
-	if (channel && 'name' in channel) {
-		return ` in #${channel.name}`;
+	if (channel instanceof TextChannel) {
+		return ` in ${display(channel)}`;
+	}
+
+	return '';
+}
+
+function getGuildAddon(interaction: ChatInputCommandInteraction) {
+	if (interaction.guild) {
+		return ` in ${display(interaction.guild)}`;
 	}
 
 	return '';

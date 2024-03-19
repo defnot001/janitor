@@ -84,7 +84,7 @@ export class Screenshot {
 			await fs.unlink(filePath);
 			LOGGER.info(`File deleted: ${oldImagePath}`);
 		} catch (e) {
-			await LOGGER.error(`Failed to delete file at ${oldImagePath}: ${e}`);
+			await LOGGER.error(e, `Failed to delete file at ${oldImagePath}.`);
 		}
 	}
 
@@ -95,7 +95,7 @@ export class Screenshot {
 			await fs.unlink(oldFilePath);
 			LOGGER.info(`Old file deleted: ${oldImagePath}`);
 		} catch (e) {
-			await LOGGER.error(`Failed to delete old file at ${oldImagePath}: ${e}`);
+			await LOGGER.error(e, `Failed to delete old file at ${oldImagePath}.`);
 		}
 
 		await this.saveToFileSystem();

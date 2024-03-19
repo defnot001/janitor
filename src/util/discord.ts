@@ -117,6 +117,8 @@ export async function getGuildMember(options: {
 /**
  * Fetches a TextChannel by its ID.
  * Returns null if the channel is not a valid text channel.
+ *
+ * @sideeffect Logs a warning if the channel is not a valid text channel. Logs an error if an error occurs while fetching the channel.
  */
 export async function getTextChannelByID(
 	client: Client,
@@ -132,7 +134,7 @@ export async function getTextChannelByID(
 		await LOGGER.warn(`Channel with ID ${id} is not a valid text channel.`);
 		return null;
 	} catch (e) {
-		await LOGGER.error(`An error occurred while fetching channel with ID ${id}: ${e}`);
+		await LOGGER.error(e, `An error occurred while fetching channel with ID ${id}.`);
 		return null;
 	}
 }

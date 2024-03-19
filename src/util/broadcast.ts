@@ -25,6 +25,7 @@ import {
 import { UserModelController } from '../database/model/UserModelController';
 import type { ExtendedClient } from '../handler/classes/ExtendedClient';
 import { getGuildMember, getTextChannelByID } from './discord';
+import { display, displayFormatted } from './format';
 import { LOGGER } from './logger';
 export type BroadcastType = Exclude<
 	BadActorSubcommand,
@@ -65,7 +66,7 @@ export abstract class Broadcaster {
 				client,
 			});
 		} catch (e) {
-			await LOGGER.error(`Failed to broadcast to admin server: ${e}`);
+			await LOGGER.error(e, 'Failed to broadcast to admin server.');
 		}
 
 		try {
@@ -77,7 +78,7 @@ export abstract class Broadcaster {
 				listenersMap,
 			});
 		} catch (e) {
-			await LOGGER.error(`Failed to broadcast to servers: ${e}`);
+			await LOGGER.error(e, 'Failed to broadcast to servers.');
 		}
 
 		if (broadcastType === 'report') {
@@ -103,7 +104,9 @@ export abstract class Broadcaster {
 
 		if (!badActorUser) {
 			await LOGGER.error(
-				`Failed to fetch user ${dbBadActor.user_id} to take moderation action. Skipping all moderation action.`,
+				new Error(
+					`Failed to fetch user ${dbBadActor.user_id} to take moderation action. Skipping all moderation action.`,
+				),
 			);
 
 			await Promise.all(
@@ -122,9 +125,11 @@ export abstract class Broadcaster {
 
 			if (!serverConfig) {
 				await LOGGER.error(
-					`Failed to get server config for server ${guild.name} ${inlineCode(
-						guild.id,
-					)}. Skipping their server.`,
+					new Error(
+						`Failed to get server config for server ${guild.name} ${inlineCode(
+							guild.id,
+						)}. Skipping their server.`,
+					),
 				);
 				return;
 			}
@@ -265,13 +270,7 @@ export abstract class Broadcaster {
 		client: Client;
 	}) {
 		const logChannel = await getTextChannelByID(options.client, botConfig.adminServerLogChannel);
-
-		if (!logChannel) {
-			await LOGGER.error(
-				`Failed to get log channel ${botConfig.adminServerLogChannel} for admin server. Skipping broadcast to admin server.`,
-			);
-			return;
-		}
+		if (!logChannel) return;
 
 		if (options.attachment !== null) {
 			await logChannel.send({
@@ -299,7 +298,9 @@ export abstract class Broadcaster {
 
 			if (!serverConfig) {
 				await LOGGER.error(
-					`Failed to get server config for server ${guild.name} (${guild.id}). Skipping their server.`,
+					new Error(
+						`Failed to get server config for server ${guild.name} (${guild.id}). Skipping their server.`,
+					),
 				);
 				continue;
 			}
@@ -350,12 +351,17 @@ export abstract class Broadcaster {
 			} catch (e) {
 				try {
 					const guild = await client.guilds.fetch(config.server_id);
+
 					await LOGGER.error(
-						`Failed to get users for server ${guild.name} (${config.server_id}): ${e}. Skipping their server.`,
+						e,
+						`Failed to get users for server ${display(guild)} (${
+							config.server_id
+						}). Skipping their server.`,
 					);
 				} catch (e) {
 					await LOGGER.error(
-						`Failed to get users for server ${config.server_id}: ${e}. Skipping their server.`,
+						e,
+						`Failed to get users for server ${config.server_id}. Skipping their server.`,
 					);
 				}
 			}
@@ -375,7 +381,7 @@ export abstract class Broadcaster {
 
 		for (const { guildID, channelID } of serverChannelIDs) {
 			const guild = await client.guilds.fetch(guildID).catch(async (e) => {
-				await LOGGER.error(`Failed to fetch server ${guildID}, skipping this server: ${e}.`);
+				await LOGGER.error(e, `Failed to fetch server ${guildID}, skipping this server.`);
 				return null;
 			});
 
@@ -413,17 +419,25 @@ export abstract class Broadcaster {
 
 						if (missingPermissions.length > 0) {
 							await LOGGER.error(
-								`Bot does not have the required permissions in channel ${channel.name} (${
-									channel.id
-								}) for server ${guild.name}. The missing permissions are: ${missingPermissions.join(
-									', ',
-								)}. Skipping server.`,
+								new Error(
+									`Bot does not have the required permissions in channel ${display(
+										channel,
+									)} for server ${display(
+										guild,
+									)}. The missing permissions are: ${missingPermissions.join(
+										', ',
+									)}. Skipping server.`,
+								),
 							);
+
 							continue;
 						}
 					} catch (e) {
 						await LOGGER.error(
-							`Bot does not have access to channel ${channel.name} (${channel.id}) for server ${guild.name}. Skipping server: ${e}`,
+							e,
+							`Bot does not have access to channel ${display(channel)} for server ${display(
+								guild,
+							)}. Skipping server.`,
 						);
 					}
 
@@ -435,7 +449,10 @@ export abstract class Broadcaster {
 				}
 			} catch (e) {
 				await LOGGER.error(
-					`Failed to fetch channel ${channelID} for server ${guild.name}: ${e}. Skipping this channel.`,
+					e,
+					`Failed to fetch channel ${channelID} for server ${display(
+						guild,
+					)}. Skipping this channel.`,
 				);
 			}
 		}
@@ -521,26 +538,33 @@ class GuildModerator {
 			//   deleteMessageSeconds: 604800,
 			// });
 
-			LOGGER.info(`Banned user ${this.displayUser()} from server ${this.displayGuild()}.`);
+			LOGGER.info(`Banned user ${display(this.targetUser)} from server ${display(this.guild)}.`);
 		} catch (e) {
 			await LOGGER.error(
-				`Failed to ban user ${this.displayUser()} from server ${this.displayGuild()}: ${e}`,
+				e,
+				`Failed to ban user ${display(this.targetUser)} from server ${display(this.guild)}.`,
 			);
 
 			try {
-				await this.channel.send(`Failed to ban user ${this.displayUserFormatted()}.`);
+				await this.channel.send(`Failed to ban user ${displayFormatted(this.targetUser)}.`);
 			} catch (e) {
 				await LOGGER.error(
-					`Failed to notify server ${this.displayGuild()} that there was an error banning ${this.displayUser()}: ${e}`,
+					e,
+					`Failed to notify server ${display(this.guild)} that there was an error banning ${display(
+						this.targetUser,
+					)}.`,
 				);
 			}
 		}
 
 		try {
-			await this.channel.send(`Banned ${this.displayUserFormatted()} from your server.`);
+			await this.channel.send(`Banned ${displayFormatted(this.targetUser)} from your server.`);
 		} catch (e) {
 			await LOGGER.error(
-				`Failed to notify server ${this.displayGuild()} that user ${this.displayUser()} was banned: ${e}`,
+				e,
+				`Failed to notify server ${display(this.guild)} that user ${display(
+					this.targetUser,
+				)} was banned.`,
 			);
 		}
 	}
@@ -548,17 +572,21 @@ class GuildModerator {
 	public async timeout(targetMember: GuildMember, targetMemberRoles?: Collection<Snowflake, Role>) {
 		try {
 			// await targetMember.timeout(1000 * 60 * 60 * 24, this.getReason()); // 24 hours
-			LOGGER.info(`Timed out user ${this.displayUser()} in server ${this.displayGuild()}).`);
+			LOGGER.info(`Timed out user ${display(this.targetUser)} in server ${display(this.guild)}.`);
 		} catch (e) {
 			await LOGGER.error(
-				`Failed to timeout user ${this.displayUser()} in server ${this.displayGuild()}: ${e}`,
+				e,
+				`Failed to timeout user ${display(this.targetUser)} in server ${display(this.guild)}.`,
 			);
 
 			try {
-				await this.channel.send(`Failed to timeout user ${this.displayUserFormatted()}.`);
+				await this.channel.send(`Failed to timeout user ${displayFormatted(this.targetUser)}.`);
 			} catch (e) {
 				await LOGGER.error(
-					`Failed to notify server ${this.displayGuild()} that there was an error timing out ${this.displayUser()}: ${e}`,
+					e,
+					`Failed to notify server ${display(
+						this.guild,
+					)} that there was an error timing out ${display(this.targetUser)}.`,
 				);
 			}
 		}
@@ -566,16 +594,21 @@ class GuildModerator {
 		try {
 			if (targetMemberRoles && targetMemberRoles.size > 0) {
 				await this.channel.send(
-					`Timed out ${this.displayUserFormatted()} for 24 hours, because they have roles that are not ignored. Those roles are: ${targetMemberRoles
+					`Timed out ${displayFormatted(
+						this.targetUser,
+					)} for 24 hours, because they have roles that are not ignored. Those roles are: ${targetMemberRoles
 						.map((r) => r.name)
 						.join(', ')}.`,
 				);
 			} else {
-				await this.channel.send(`Timed out ${this.displayUserFormatted()} for 24 hours.`);
+				await this.channel.send(`Timed out ${displayFormatted(this.targetUser)} for 24 hours.`);
 			}
 		} catch (e) {
 			await LOGGER.error(
-				`Failed to notify server ${this.displayGuild()} that user ${this.displayUser()} was timed out: ${e}`,
+				e,
+				`Failed to notify server ${display(this.guild)} that user ${display(
+					this.targetUser,
+				)} was timed out.`,
 			);
 		}
 	}
@@ -583,17 +616,21 @@ class GuildModerator {
 	public async kick(targetMember: GuildMember) {
 		try {
 			// await targetMember.kick(this.getReason());
-			LOGGER.info(`Kicked user ${this.displayUser()} from server ${this.displayGuild()}.`);
+			LOGGER.info(`Kicked user ${display(this.targetUser)} from server ${display(this.guild)}.`);
 		} catch (e) {
 			await LOGGER.error(
-				`Failed to kick user ${this.displayUser()} from server ${this.displayGuild()}: ${e}`,
+				e,
+				`Failed to kick user ${display(this.targetUser)} from server ${display(this.guild)}.`,
 			);
 
 			try {
-				await this.channel.send(`Failed to kick user ${this.displayUserFormatted()}.`);
+				await this.channel.send(`Failed to kick user ${displayFormatted(this.targetUser)}.`);
 			} catch (e) {
 				await LOGGER.error(
-					`Failed to notify server ${this.displayGuild()} that there was an error kicking ${this.displayUser()}: ${e}`,
+					e,
+					`Failed to notify server ${display(this.guild)} that there was an error kicking ${display(
+						this.targetUser,
+					)}.`,
 				);
 			}
 		}
@@ -603,42 +640,37 @@ class GuildModerator {
 		try {
 			// await targetMember.ban({ reason: this.getReason(), deleteMessageSeconds: 604800 });
 			// await this.guild.members.unban(this.targetUser, 'Softban');
-			LOGGER.info(`Softbanned user ${this.displayUser()} from server ${this.displayGuild()}.`);
+			LOGGER.info(
+				`Softbanned user ${display(this.targetUser)} from server ${display(this.guild)}.`,
+			);
 		} catch (e) {
 			await LOGGER.error(
-				`Failed to softban user ${this.displayUser()} from server ${this.displayGuild()}: ${e}`,
+				e,
+				`Failed to softban user ${display(this.targetUser)} from server ${display(this.guild)}.`,
 			);
 
 			try {
-				await this.channel.send(`Failed to softban user ${this.displayUserFormatted()}.`);
+				await this.channel.send(`Failed to softban user ${displayFormatted(this.targetUser)}.`);
 			} catch (e) {
 				await LOGGER.error(
-					`Failed to notify server ${this.displayGuild()} that there was an error softbanning ${this.displayUser()}: ${e}`,
+					e,
+					`Failed to notify server ${display(
+						this.guild,
+					)} that there was an error softbanning ${display(this.targetUser)}.`,
 				);
 			}
 		}
 
 		try {
-			await this.channel.send(`Softbanned ${this.displayUserFormatted()} from your server.`);
+			await this.channel.send(`Softbanned ${displayFormatted(this.targetUser)} from your server.`);
 		} catch (e) {
 			await LOGGER.error(
-				`Failed to notify server ${this.displayGuild()} that user ${this.displayUser()} was softbanned: ${e}`,
+				e,
+				`Failed to notify server ${display(this.guild)} that user ${display(
+					this.targetUser,
+				)} was softbanned.`,
 			);
 		}
-	}
-
-	private displayUser() {
-		return `${this.targetUser.globalName ?? this.targetUser.username} (${this.targetUser.id})`;
-	}
-
-	private displayGuild() {
-		return `${this.guild.name} (${this.guild.id})`;
-	}
-
-	private displayUserFormatted() {
-		return `${escapeMarkdown(this.targetUser.globalName ?? this.targetUser.username)} (${inlineCode(
-			this.targetUser.id,
-		)})`;
 	}
 
 	private getReason() {
