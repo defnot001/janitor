@@ -422,6 +422,10 @@ class UserCommandHandler {
 			return;
 		}
 
+		await this.interaction.editReply(
+			`Successfully removed ${displayFormatted(args.user)} from the whitelist.`,
+		);
+
 		await this.handleServerConfigUpdates({ oldServerIDs: deletedUser.servers, newServerIDs: [] });
 	}
 
