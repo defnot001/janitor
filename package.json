@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "discord.js": "^14.14.1",
-    "glob": "^10.3.10",
     "pg": "^8.11.3"
   },
   "scripts": {
