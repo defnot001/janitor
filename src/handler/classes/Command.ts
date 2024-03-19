@@ -1,11 +1,11 @@
 import type {
-	PermissionResolvable,
+	ApplicationCommandOptionData,
 	ChatInputApplicationCommandData,
 	CommandInteractionOptionResolver,
-	ApplicationCommandOptionData,
+	PermissionResolvable,
 } from 'discord.js';
-import type { ExtendedClient } from './ExtendedClient';
 import type { CommandOptions, ExtendedInteraction } from '../types';
+import type { ExtendedClient } from './ExtendedClient';
 
 export class Command implements ChatInputApplicationCommandData {
 	name: string;
