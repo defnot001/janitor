@@ -1,10 +1,10 @@
 import { ActivityType, type Client, TextChannel } from 'discord.js';
-import { Event } from '../handler/classes/Event';
+import { DiscordEvent } from '../handler/classes/Event';
 import { LOGGER } from '../util/logger';
 // import { client } from '../index';
 // import { config } from '../config';
 
-export default new Event('ready', async (c) => {
+export const ready = new DiscordEvent('ready', async (c) => {
 	c.user.setActivity('Bad Actors', { type: ActivityType.Watching });
 	LOGGER.info(`Bot is ready! Logged in as ${c.user.username}.`);
 

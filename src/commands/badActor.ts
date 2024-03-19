@@ -42,7 +42,7 @@ export type BadActorSubcommand =
 
 const commandName = 'badactor';
 
-export default new Command({
+export const badactor = new Command({
 	name: commandName,
 	description: 'Report a bad actor to the TMC admins or remove a report',
 	options: [

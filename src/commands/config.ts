@@ -24,7 +24,7 @@ import { checkUserInDatabase } from '../util/permission';
 
 const commandName = 'config';
 
-export default new Command({
+export const config = new Command({
 	name: commandName,
 	description: 'Configure the bot for your server',
 	options: [

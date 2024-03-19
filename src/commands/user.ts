@@ -24,7 +24,7 @@ import { checkAdminInDatabase, isInteractionInAdminServer } from '../util/permis
 
 const commandName = 'user';
 
-export default new Command({
+export const user = new Command({
 	name: commandName,
 	description: 'Subcommands for managing users.',
 	options: [

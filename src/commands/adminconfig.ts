@@ -17,7 +17,7 @@ import { checkAdminInDatabase, isInteractionInAdminServer } from '../util/permis
 
 const commandName = 'adminconfig';
 
-export default new Command({
+export const adminconfig = new Command({
 	name: commandName,
 	description: "Subcommands for admins to inspect the bot's server configs",
 	options: [

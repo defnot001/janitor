@@ -5,12 +5,12 @@ import {
 	TextChannel,
 } from 'discord.js';
 import { client } from '..';
-import { Event } from '../handler/classes/Event';
+import { DiscordEvent } from '../handler/classes/Event';
 import type { ExtendedInteraction } from '../handler/types';
 import { display } from '../util/format';
 import { LOGGER } from '../util/logger';
 
-export default new Event('interactionCreate', async (interaction) => {
+export const interactionCreate = new DiscordEvent('interactionCreate', async (interaction) => {
 	if (!interaction.isChatInputCommand()) {
 		return;
 	}

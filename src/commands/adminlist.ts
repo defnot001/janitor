@@ -8,8 +8,7 @@ import { LOGGER } from '../util/logger';
 import { checkUserInDatabase } from '../util/permission';
 
 const commandName = 'adminlist';
-
-export default new Command({
+export const adminlist = new Command({
 	name: commandName,
 	description: 'Lists all the admins of the bot',
 	execute: async ({ interaction, client }) => {
