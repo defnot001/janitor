@@ -1,8 +1,11 @@
 import type { ClientEvents } from 'discord.js';
 
-export class Event<K extends keyof ClientEvents> {
-	constructor(
-		public name: K,
-		public execute: (...args: ClientEvents[K]) => void,
-	) {}
+export class DiscordEvent<K extends keyof ClientEvents> {
+	public name: K;
+	public execute: (...args: ClientEvents[K]) => Promise<void>;
+
+	constructor(name: K, execute: (...args: ClientEvents[K]) => Promise<void>) {
+		this.name = name;
+		this.execute = execute;
+	}
 }

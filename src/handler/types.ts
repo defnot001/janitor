@@ -19,18 +19,17 @@ export interface ExtendedInteraction extends CommandInteraction {
 
 export type CommandOptions = {
 	userPermissions?: PermissionResolvable;
+	defaultPermission?: boolean;
 	execute: (options: {
 		client: ExtendedClient;
 		interaction: ExtendedInteraction;
 		args: CommandInteractionOptionResolver;
-	}) => unknown;
+	}) => Promise<void>;
 } & ChatInputApplicationCommandData;
 
 export type ClientStartOptions = {
 	botToken: string;
 	guildID?: string;
-	commandsPath: string;
-	eventsPath: string;
 	globalCommands: boolean;
 	registerCommands: boolean;
 };
