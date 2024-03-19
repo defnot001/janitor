@@ -1,6 +1,5 @@
 import { GatewayIntentBits } from 'discord.js';
 import { Client } from 'pg';
-import { projectPaths } from './config';
 import { ExtendedClient } from './handler/classes/ExtendedClient';
 import { LOGGER } from './util/logger';
 
@@ -10,8 +9,6 @@ export const client = new ExtendedClient({
 
 await client.start({
 	botToken: Bun.env.DISCORD_BOT_TOKEN,
-	commandsPath: projectPaths.commands,
-	eventsPath: projectPaths.events,
 	globalCommands: true,
 	registerCommands: false,
 });
