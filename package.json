@@ -21,7 +21,7 @@
 		"lint": "bunx @biomejs/biome check --apply src",
 		"deploy:nobuild": "NODE_ENV=production bun run src/index.ts",
 		"build:prod": "NODE_ENV=production bun build src/index.ts --target=bun --outfile=src/bot.js --minify",
-		"deploy:prod": "bun run build && NODE_ENV=production bun run src/bot.js",
+		"deploy:prod": "bun run build:prod && NODE_ENV=production bun run src/bot.js",
 		"migrate:dev": "bun run src/database/migration.ts",
 		"migrate:prod": "NODE_ENV=production bun run src/database/migration.ts"
 	}
