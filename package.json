@@ -1,26 +1,28 @@
 {
-  "name": "tmc-janitor",
-  "module": "index.ts",
-  "type": "module",
-  "devDependencies": {
-    "@biomejs/biome": "1.6.1",
-    "@types/pg": "^8.11.2",
-    "bun-types": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5.0.0"
-  },
-  "dependencies": {
-    "discord.js": "^14.14.1",
-    "pg": "^8.11.3"
-  },
-  "scripts": {
-    "dev": "bun run src/index.ts",
-    "dev:watch": "bun run --watch src/index.ts",
-    "format": "bunx @biomejs/biome format src --write",
-    "lint": "bunx @biomejs/biome check --apply src",
-    "deploy": "NODE_ENV=production bun run src/index.ts",
-    "migrate:dev": "bun run src/database/migration.ts",
-    "migrate:prod": "NODE_ENV=production bun run src/database/migration.ts"
-  }
+	"name": "tmc-janitor",
+	"module": "index.ts",
+	"type": "module",
+	"devDependencies": {
+		"@biomejs/biome": "1.6.1",
+		"@types/pg": "^8.11.2",
+		"bun-types": "latest"
+	},
+	"peerDependencies": {
+		"typescript": "^5.0.0"
+	},
+	"dependencies": {
+		"discord.js": "^14.14.1",
+		"pg": "^8.11.3"
+	},
+	"scripts": {
+		"dev": "bun run src/index.ts",
+		"dev:watch": "bun run --watch src/index.ts",
+		"format": "bunx @biomejs/biome format src --write",
+		"lint": "bunx @biomejs/biome check --apply src",
+		"deploy:nobuild": "NODE_ENV=production bun run src/index.ts",
+		"build:prod": "NODE_ENV=production bun build src/index.ts --target=bun --outfile=src/bot.js --minify",
+		"deploy:prod": "bun run build && NODE_ENV=production bun run src/bot.js",
+		"migrate:dev": "bun run src/database/migration.ts",
+		"migrate:prod": "NODE_ENV=production bun run src/database/migration.ts"
+	}
 }
